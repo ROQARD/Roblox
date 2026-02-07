@@ -3,400 +3,287 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Roblox Stat Finder</title>
+    <title>Roblox Game Explorer</title>
     <style>
         :root {
-            --bg-color: #0f0f13;
-            --card-bg: #1a1a20;
-            --accent: #00b06f; /* Roblox Green */
+            --bg-color: #0b0b0e;
+            --card-bg: rgba(26, 26, 32, 0.8);
+            --accent: #00e676;
             --text-primary: #ffffff;
-            --text-secondary: #a1a1aa;
-            --font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            --text-secondary: #94a3b8;
+            --glass-border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
-
         body {
             background-color: var(--bg-color);
+            background-image: radial-gradient(circle at top right, #1a1a2e, transparent);
             color: var(--text-primary);
-            font-family: var(--font-family);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             padding: 2rem;
+            min-height: 100vh;
         }
 
-        /* Search Section */
-        .search-container {
-            width: 100%;
-            max-width: 600px;
+        .container { max-width: 1100px; margin: 0 auto; }
+
+        /* Navigation Tabs */
+        .tabs {
+            display: flex;
+            gap: 1rem;
             margin-bottom: 2rem;
-            text-align: center;
+            justify-content: center;
+        }
+        .tab-btn {
+            background: var(--card-bg);
+            border: var(--glass-border);
+            color: var(--text-secondary);
+            padding: 12px 24px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .tab-btn.active {
+            background: var(--accent);
+            color: #000;
+            font-weight: bold;
         }
 
-        h1 { margin-bottom: 1.5rem; font-weight: 700; letter-spacing: -1px; }
+        /* Search Sections */
+        .search-section { display: none; margin-bottom: 2rem; }
+        .search-section.active { display: block; }
 
         .input-group {
             display: flex;
             gap: 10px;
             background: var(--card-bg);
-            padding: 10px;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-            border: 1px solid #333;
+            padding: 8px;
+            border-radius: 16px;
+            border: var(--glass-border);
+            backdrop-filter: blur(10px);
         }
-
         input {
             flex: 1;
             background: transparent;
             border: none;
             color: white;
-            padding: 10px;
+            padding: 12px;
             font-size: 1rem;
             outline: none;
         }
-
-        /* Removed arrows from number input */
-        input::-webkit-outer-spin-button,
-        input::-webkit-inner-spin-button {
-            -webkit-appearance: none;
-            margin: 0;
-        }
-
         button {
             background: var(--accent);
-            color: white;
+            color: #000;
             border: none;
-            padding: 10px 24px;
-            border-radius: 8px;
-            font-weight: 600;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        /* Results List (For Search/Recents) */
+        .results-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        .result-card {
+            background: var(--card-bg);
+            border: var(--glass-border);
+            border-radius: 12px;
+            padding: 12px;
             cursor: pointer;
             transition: transform 0.2s;
+            text-align: center;
         }
+        .result-card:hover { transform: translateY(-5px); border-color: var(--accent); }
+        .result-card img { width: 100%; border-radius: 8px; margin-bottom: 8px; }
+        .result-card p { font-size: 0.9rem; font-weight: 500; }
 
-        button:hover { transform: scale(1.05); }
-        button:disabled { background: #444; cursor: not-allowed; }
-
-        /* Error Message */
-        #error-msg {
-            color: #ff4d4d;
-            margin-top: 1rem;
-            display: none;
-        }
-
-        /* History Section */
-        #history-container {
-            width: 100%;
-            max-width: 600px;
-            margin-bottom: 2rem;
-            display: none; /* Hidden by default */
-        }
-
-        #history-list {
-            display: flex;
-            gap: 10px;
-            overflow-x: auto;
-            padding-bottom: 10px;
-            scrollbar-width: thin;
-            scrollbar-color: #333 transparent;
-        }
-
-        .history-item {
-            background: var(--card-bg);
-            border: 1px solid #333;
-            border-radius: 8px;
-            padding: 8px 12px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            cursor: pointer;
-            min-width: 160px;
-            transition: background 0.2s;
-            flex-shrink: 0;
-        }
-
-        .history-item:hover {
-            background: #2a2a30;
-            border-color: var(--accent);
-        }
-
-        .history-icon {
-            width: 30px;
-            height: 30px;
-            border-radius: 6px;
-            background: #000;
-            object-fit: cover;
-        }
-
-        .history-name {
-            font-size: 0.85rem;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            max-width: 100px;
-            font-weight: 500;
-            color: var(--text-secondary);
-        }
-
-        /* Stats Grid (Bento Box Style) */
+        /* Main Stats Display */
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            grid-template-rows: auto auto;
             gap: 1.5rem;
-            width: 100%;
-            max-width: 1000px;
-            opacity: 0;
-            transform: translateY(20px);
-            transition: all 0.5s ease;
+            margin-top: 2rem;
+            display: none;
         }
-
-        .stats-grid.visible { opacity: 1; transform: translateY(0); }
-
         .card {
             background: var(--card-bg);
             padding: 1.5rem;
-            border-radius: 16px;
-            border: 1px solid #2a2a30;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
+            border-radius: 20px;
+            border: var(--glass-border);
+            backdrop-filter: blur(10px);
         }
+        .card-header { grid-column: span 4; display: flex; align-items: center; gap: 2rem; }
+        .big-icon { width: 120px; height: 120px; border-radius: 24px; }
+        .card h3 { color: var(--text-secondary); font-size: 0.8rem; text-transform: uppercase; margin-bottom: 0.5rem; }
+        .card .value { font-size: 1.6rem; font-weight: 800; }
 
-        .card h3 { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.5px; }
-        .card .value { font-size: 1.5rem; font-weight: 700; }
+        #error-log { color: #ff5252; text-align: center; margin-top: 1rem; font-weight: 500; }
 
-        /* Specific Card Layouts */
-        .card-header {
-            grid-column: span 4;
-            display: flex;
-            align-items: center;
-            gap: 20px;
-            background: linear-gradient(145deg, #1a1a20, #22222a);
-        }
-
-        .game-icon {
-            width: 80px;
-            height: 80px;
-            border-radius: 12px;
-            object-fit: cover;
-            background: #333;
-        }
-
-        .game-info h2 { font-size: 1.8rem; margin-bottom: 5px; }
-        .creator { color: var(--text-secondary); font-size: 0.9rem; }
-
-        /* Responsive adjustments */
         @media (max-width: 768px) {
             .stats-grid { grid-template-columns: 1fr 1fr; }
             .card-header { grid-column: span 2; flex-direction: column; text-align: center; }
-            .card[style*="grid-column: span 4"] { grid-column: span 2 !important; }
         }
     </style>
 </head>
 <body>
 
-    <div class="search-container">
-        <h1>Roblox Game Analytics</h1>
+<div class="container">
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('id-tab')">Find by ID</button>
+        <button class="tab-btn" onclick="switchTab('search-tab')">Search Games</button>
+        <button class="tab-btn" onclick="switchTab('user-tab')">User Recents</button>
+    </div>
+
+    <div id="id-tab" class="search-section active">
         <div class="input-group">
-            <input type="number" id="placeIdInput" placeholder="Enter Game ID (e.g., 920587237)" />
-            <button onclick="fetchStats()" id="searchBtn">Find</button>
+            <input type="number" id="placeIdInput" placeholder="Enter Game/Place ID (e.g. 920587237)">
+            <button onclick="fetchStatsById()">Get Stats</button>
         </div>
-        <p id="error-msg">Could not find game. Check ID and try again.</p>
     </div>
 
-    <div id="history-container">
-        <h3 style="color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">Recent Searches</h3>
-        <div id="history-list">
-            </div>
+    <div id="search-tab" class="search-section">
+        <div class="input-group">
+            <input type="text" id="gameQueryInput" placeholder="Search for a game name...">
+            <button onclick="searchGames()">Search</button>
+        </div>
+        <div id="search-results" class="results-list"></div>
     </div>
 
-    <div class="stats-grid" id="results">
+    <div id="user-tab" class="search-section">
+        <div class="input-group">
+            <input type="text" id="usernameInput" placeholder="Enter Roblox Username...">
+            <button onclick="fetchUserRecents()">Find Games</button>
+        </div>
+        <div id="user-results" class="results-list"></div>
+    </div>
+
+    <p id="error-log"></p>
+
+    <div class="stats-grid" id="statsGrid">
         <div class="card card-header">
-            <img src="" alt="Icon" class="game-icon" id="gameIcon">
-            <div class="game-info">
-                <h2 id="gameTitle">Game Title</h2>
-                <p class="creator">By <span id="gameCreator">Creator</span></p>
+            <img id="statIcon" class="big-icon" src="">
+            <div>
+                <h1 id="statTitle">Game Title</h1>
+                <p id="statCreator" style="color: var(--accent)">By Unknown</p>
             </div>
         </div>
-
-        <div class="card">
-            <h3>Active Playing</h3>
-            <div class="value" id="playing">0</div>
-        </div>
-        
-        <div class="card">
-            <h3>Total Visits</h3>
-            <div class="value" id="visits">0</div>
-        </div>
-
-        <div class="card">
-            <h3>Favorites</h3>
-            <div class="value" id="favorites">0</div>
-        </div>
-
-        <div class="card">
-            <h3>Likes (Ratio)</h3>
-            <div class="value" id="likes">0%</div>
-        </div>
-
-        <div class="card">
-            <h3>Server Size</h3>
-            <div class="value" id="serverSize">0</div>
-        </div>
-
-        <div class="card">
-            <h3>Created</h3>
-            <div class="value" id="created">2023</div>
-        </div>
-
-        <div class="card">
-            <h3>Updated</h3>
-            <div class="value" id="updated">Today</div>
-        </div>
-        
+        <div class="card"><h3>Active</h3><div class="value" id="valActive">0</div></div>
+        <div class="card"><h3>Visits</h3><div class="value" id="valVisits">0</div></div>
+        <div class="card"><h3>Likes</h3><div class="value" id="valLikes">0%</div></div>
+        <div class="card"><h3>Favorites</h3><div class="value" id="valFavs">0</div></div>
         <div class="card" style="grid-column: span 4;">
             <h3>Description</h3>
-            <div class="value" id="desc" style="font-size: 0.9rem; font-weight: 400; line-height: 1.5; color: #ccc; margin-top: 10px; max-height: 150px; overflow-y: auto;"></div>
+            <p id="statDesc" style="font-size: 0.95rem; line-height: 1.6; color: #cbd5e1;"></p>
         </div>
     </div>
+</div>
 
-    <script>
-        const PROXY_URL = 'https://corsproxy.io/?'; 
+<script>
+    const PROXY = "https://corsproxy.io/?";
 
-        // Load history when page opens
-        document.addEventListener('DOMContentLoaded', renderHistory);
+    function switchTab(tabId) {
+        document.querySelectorAll('.search-section').forEach(s => s.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        event.currentTarget.classList.add('active');
+    }
 
-        async function fetchStats(inputPlaceId = null) {
-            // Determine which ID to use (typed input or clicked history item)
-            let placeId = inputPlaceId;
-            if (!placeId) {
-                placeId = document.getElementById('placeIdInput').value.trim();
-            }
+    async function fetchStatsById(placeId) {
+        if (!placeId) placeId = document.getElementById('placeIdInput').value;
+        const errorLog = document.getElementById('error-log');
+        const grid = document.getElementById('statsGrid');
+        errorLog.innerText = "";
+        
+        try {
+            // Step 1: Get Universe ID
+            const univRes = await fetch(`${PROXY}https://apis.roblox.com/universes/v1/places/${placeId}/universe`);
+            const univData = await univRes.json();
+            if (!univData.universeId) throw new Error("Could not map Place ID to a Game Universe.");
+            const uID = univData.universeId;
 
-            const btn = document.getElementById('searchBtn');
-            const grid = document.getElementById('results');
-            const errorMsg = document.getElementById('error-msg');
+            // Step 2: Fetch Multi-stats
+            const [gInfo, gVotes, gIcon] = await Promise.all([
+                fetch(`${PROXY}https://games.roblox.com/v1/games?universeIds=${uID}`).then(r => r.json()),
+                fetch(`${PROXY}https://games.roblox.com/v1/games/votes?universeIds=${uID}`).then(r => r.json()),
+                fetch(`${PROXY}https://thumbnails.roblox.com/v1/games/icons?universeIds=${uID}&size=150x150&format=Png`).then(r => r.json())
+            ]);
 
-            if (!placeId) return;
+            const game = gInfo.data[0];
+            const votes = gVotes.data[0];
+            
+            // Step 3: Fill UI
+            document.getElementById('statTitle').innerText = game.name;
+            document.getElementById('statCreator').innerText = `By ${game.creator.name}`;
+            document.getElementById('statIcon').src = gIcon.data[0].imageUrl;
+            document.getElementById('statDesc').innerText = game.description || "No description provided.";
+            document.getElementById('valActive').innerText = game.playing.toLocaleString();
+            document.getElementById('valVisits').innerText = game.visits.toLocaleString();
+            document.getElementById('valFavs').innerText = game.favoritedCount.toLocaleString();
+            
+            const ratio = votes.upVotes + votes.downVotes === 0 ? 0 : Math.round((votes.upVotes / (votes.upVotes + votes.downVotes)) * 100);
+            document.getElementById('valLikes').innerText = `${ratio}%`;
 
-            // Reset UI state
-            btn.disabled = true;
-            btn.innerText = "Loading...";
-            grid.classList.remove('visible');
-            errorMsg.style.display = 'none';
+            grid.style.display = 'grid';
+            grid.scrollIntoView({ behavior: 'smooth' });
 
-            try {
-                // 1. Get Universe ID from Place ID
-                const universeRes = await fetch(`${PROXY_URL}https://apis.roblox.com/universes/v1/places/${placeId}/universe`);
-                
-                if (!universeRes.ok) throw new Error("Invalid ID");
-                
-                const universeData = await universeRes.json();
-                const universeId = universeData.universeId;
-
-                // 2. Fetch all stats in parallel
-                const [gamesRes, votesRes, iconRes] = await Promise.all([
-                    fetch(`${PROXY_URL}https://games.roblox.com/v1/games?universeIds=${universeId}`),
-                    fetch(`${PROXY_URL}https://games.roblox.com/v1/games/votes?universeIds=${universeId}`),
-                    fetch(`${PROXY_URL}https://thumbnails.roblox.com/v1/games/icons?universeIds=${universeId}&size=150x150&format=Png&isCircular=false`)
-                ]);
-
-                const gamesData = await gamesRes.json();
-                const votesData = await votesRes.json();
-                const iconData = await iconRes.json();
-
-                const game = gamesData.data[0];
-                const votes = votesData.data[0];
-                const icon = iconData.data[0].imageUrl;
-
-                // 3. Update DOM elements
-                document.getElementById('gameTitle').innerText = game.name;
-                document.getElementById('gameCreator').innerText = game.creator.name;
-                document.getElementById('gameIcon').src = icon;
-                document.getElementById('desc').innerText = game.description;
-                
-                document.getElementById('playing').innerText = formatNumber(game.playing);
-                document.getElementById('visits').innerText = formatNumber(game.visits);
-                document.getElementById('favorites').innerText = formatNumber(game.favoritedCount);
-                document.getElementById('serverSize').innerText = game.maxPlayers;
-                
-                // Calculate Like Ratio
-                const totalVotes = votes.upVotes + votes.downVotes;
-                const ratio = totalVotes === 0 ? 0 : Math.round((votes.upVotes / totalVotes) * 100);
-                document.getElementById('likes').innerText = `${ratio}%`;
-                
-                // Dates
-                document.getElementById('created').innerText = new Date(game.created).toLocaleDateString();
-                document.getElementById('updated').innerText = new Date(game.updated).toLocaleDateString();
-
-                // 4. Save to History
-                saveToHistory(placeId, game.name, icon);
-
-                // Show Grid
-                grid.classList.add('visible');
-
-            } catch (err) {
-                console.error(err);
-                errorMsg.style.display = 'block';
-            } finally {
-                btn.disabled = false;
-                btn.innerText = "Find";
-            }
+        } catch (err) {
+            errorLog.innerText = "Error: " + err.message;
         }
+    }
 
-        // --- History Logic ---
+    async function searchGames() {
+        const query = document.getElementById('gameQueryInput').value;
+        const resultsDiv = document.getElementById('search-results');
+        resultsDiv.innerHTML = "Searching...";
 
-        function saveToHistory(id, name, icon) {
-            let history = JSON.parse(localStorage.getItem('roblox_history') || '[]');
-            
-            // Remove if already exists (to prevent duplicates)
-            history = history.filter(item => item.id !== id);
-            
-            // Add new item to start of array
-            history.unshift({ id, name, icon });
-            
-            // Limit to 5 items max
-            if (history.length > 5) history.pop();
-            
-            localStorage.setItem('roblox_history', JSON.stringify(history));
-            renderHistory();
-        }
+        try {
+            const res = await fetch(`${PROXY}https://games.roblox.com/v1/games/list?model.keyword=${encodeURIComponent(query)}`);
+            const data = await res.json();
+            resultsDiv.innerHTML = "";
 
-        function renderHistory() {
-            const container = document.getElementById('history-container');
-            const list = document.getElementById('history-list');
-            const history = JSON.parse(localStorage.getItem('roblox_history') || '[]');
-
-            if (history.length === 0) {
-                container.style.display = 'none';
-                return;
-            }
-
-            container.style.display = 'block';
-            list.innerHTML = ''; // Clear current list
-
-            history.forEach(game => {
-                const item = document.createElement('div');
-                item.className = 'history-item';
-                item.innerHTML = `
-                    <img src="${game.icon}" class="history-icon" alt="icon">
-                    <span class="history-name">${game.name}</span>
-                `;
-                // When clicked, run fetchStats with this ID
-                item.onclick = () => {
-                    document.getElementById('placeIdInput').value = game.id;
-                    fetchStats(game.id);
-                };
-                list.appendChild(item);
+            data.games.forEach(game => {
+                const card = document.createElement('div');
+                card.className = 'result-card';
+                card.innerHTML = `<img src="${game.imageToken}"><p>${game.name}</p>`;
+                card.onclick = () => fetchStatsById(game.placeId);
+                resultsDiv.appendChild(card);
             });
-        }
+        } catch (err) { resultsDiv.innerHTML = "Search failed."; }
+    }
 
-        // Helper to format numbers (e.g., 1,200,000 -> 1.2M)
-        function formatNumber(num) {
-            return new Intl.NumberFormat('en-US', { notation: "compact", compactDisplay: "short" }).format(num);
-        }
-    </script>
+    async function fetchUserRecents() {
+        const username = document.getElementById('usernameInput').value;
+        const resultsDiv = document.getElementById('user-results');
+        resultsDiv.innerHTML = "Locating user...";
+
+        try {
+            // Get User ID
+            const userRes = await fetch(`${PROXY}https://users.roblox.com/v1/users/search?keyword=${username}&limit=1`);
+            const userData = await userRes.json();
+            if (!userData.data.length) throw new Error("User not found");
+            const userId = userData.data[0].id;
+
+            // Get Recent Games
+            resultsDiv.innerHTML = "Fetching history (Privacy settings must be public)...";
+            const recentRes = await fetch(`${PROXY}https://games.roblox.com/v1/users/${userId}/games/list?model.recentGamesFilter=All`);
+            const recentData = await recentRes.json();
+            
+            resultsDiv.innerHTML = "";
+            if (!recentData.data.length) resultsDiv.innerHTML = "No public recent games found.";
+
+            recentData.data.forEach(game => {
+                const card = document.createElement('div');
+                card.className = 'result-card';
+                card.innerHTML = `<p>${game.name}</p>`; // Note: Recent games API has limited images, we show text
+                card.onclick = () => fetchStatsById(game.placeId);
+                resultsDiv.appendChild(card);
+            });
+        } catch (err) { resultsDiv.innerHTML = err.message; }
+    }
+</script>
+
 </body>
 </html>
