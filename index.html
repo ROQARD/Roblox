@@ -3,15 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Roblox Stats | Place ID Finder</title>
+    <title>Roblox Stats | RoProxy Edition</title>
     <style>
         :root {
-            --bg: #0a0a0c;
-            --panel: #16161a;
+            --bg: #08080a;
+            --panel: #121216;
             --accent: #00ff88;
             --text: #ffffff;
             --text-dim: #94a3b8;
-            --border: 1px solid rgba(255, 255, 255, 0.08);
+            --border: 1px solid rgba(255, 255, 255, 0.05);
+            --card-shadow: 0 8px 32px rgba(0,0,0,0.4);
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -27,32 +28,35 @@
         }
 
         /* --- Header & Search --- */
-        .search-wrapper {
+        .header {
             width: 100%;
-            max-width: 650px;
+            max-width: 700px;
             text-align: center;
             margin-bottom: 40px;
         }
 
-        h1 { font-size: 2.5rem; margin-bottom: 8px; letter-spacing: -1px; }
-        p.subtitle { color: var(--text-dim); margin-bottom: 24px; }
+        h1 { font-size: 2.8rem; margin-bottom: 10px; letter-spacing: -1.5px; font-weight: 800; }
+        .subtitle { color: var(--text-dim); margin-bottom: 30px; font-size: 1.1rem; }
 
         .search-box {
             display: flex;
             background: var(--panel);
             border: var(--border);
-            padding: 8px;
-            border-radius: 16px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            padding: 10px;
+            border-radius: 20px;
+            box-shadow: var(--card-shadow);
+            transition: border-color 0.3s;
         }
+
+        .search-box:focus-within { border-color: var(--accent); }
 
         input {
             flex: 1;
             background: transparent;
             border: none;
             color: white;
-            padding: 12px 16px;
-            font-size: 1rem;
+            padding: 12px 20px;
+            font-size: 1.1rem;
             outline: none;
         }
 
@@ -60,217 +64,244 @@
             background: var(--accent);
             color: #000;
             border: none;
-            padding: 0 24px;
-            border-radius: 12px;
+            padding: 0 30px;
+            border-radius: 14px;
             font-weight: 700;
             cursor: pointer;
-            transition: transform 0.2s, opacity 0.2s;
+            transition: all 0.2s;
         }
 
-        button#searchBtn:hover { transform: scale(1.02); }
-        button#searchBtn:disabled { opacity: 0.5; cursor: wait; }
+        button#searchBtn:hover { transform: scale(1.03); filter: brightness(1.1); }
+        button#searchBtn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        /* --- History Section --- */
-        #history-box {
+        /* --- History --- */
+        #history-section {
             width: 100%;
-            max-width: 650px;
+            max-width: 700px;
             margin-bottom: 40px;
             display: none;
         }
 
-        .history-label {
-            font-size: 0.75rem;
+        .section-label {
+            font-size: 0.7rem;
             text-transform: uppercase;
             color: var(--text-dim);
-            letter-spacing: 1px;
-            margin-bottom: 12px;
+            letter-spacing: 2px;
+            margin-bottom: 15px;
             display: block;
+            font-weight: 700;
         }
 
-        .history-list { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; }
+        .history-list { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 10px; scrollbar-width: none; }
+        .history-list::-webkit-scrollbar { display: none; }
 
         .hist-card {
             background: var(--panel);
             border: var(--border);
-            padding: 8px 12px;
-            border-radius: 10px;
+            padding: 10px 15px;
+            border-radius: 12px;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
             cursor: pointer;
             flex-shrink: 0;
-            transition: border-color 0.2s;
+            transition: background 0.2s;
         }
 
-        .hist-card:hover { border-color: var(--accent); }
-        .hist-card img { width: 24px; height: 24px; border-radius: 4px; }
-        .hist-card span { font-size: 0.85rem; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .hist-card:hover { background: #1a1a20; border-color: var(--accent); }
+        .hist-card img { width: 32px; height: 32px; border-radius: 8px; object-fit: cover; }
+        .hist-card span { font-size: 0.9rem; font-weight: 500; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
         /* --- Stats Bento Grid --- */
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 16px;
+            gap: 20px;
             width: 100%;
-            max-width: 900px;
-            display: none; /* Shown on success */
+            max-width: 1000px;
+            display: none; /* Injected via JS */
         }
 
         .card {
             background: var(--panel);
             border: var(--border);
             padding: 24px;
-            border-radius: 20px;
-            position: relative;
-            overflow: hidden;
+            border-radius: 24px;
+            box-shadow: var(--card-shadow);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }
 
-        .card-main { grid-column: span 4; display: flex; align-items: center; gap: 24px; background: linear-gradient(135deg, #16161a 0%, #1c1c22 100%); }
-        .card-main img { width: 100px; height: 100px; border-radius: 16px; object-fit: cover; box-shadow: 0 8px 20px rgba(0,0,0,0.4); }
+        .card-header { 
+            grid-column: span 4; 
+            flex-direction: row; 
+            justify-content: flex-start; 
+            gap: 30px; 
+            background: linear-gradient(145deg, #121216 0%, #1a1a22 100%); 
+        }
+
+        .card-header img { width: 120px; height: 120px; border-radius: 20px; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
+        .header-text h2 { font-size: 2rem; margin-bottom: 5px; letter-spacing: -1px; }
         
-        .label { font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
-        .value { font-size: 1.5rem; font-weight: 700; color: var(--text); }
-        .desc { grid-column: span 4; font-size: 0.95rem; line-height: 1.6; color: #cbd5e1; max-height: 200px; overflow-y: auto; }
+        .label { font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; font-weight: 600; }
+        .value { font-size: 1.8rem; font-weight: 800; color: var(--text); }
+        
+        .card.wide { grid-column: span 2; }
+        .card.full { grid-column: span 4; }
 
-        #error-msg { color: #ff4757; margin-top: 12px; font-weight: 500; display: none; }
+        #description { 
+            font-size: 1rem; 
+            line-height: 1.6; 
+            color: #cbd5e1; 
+            max-height: 250px; 
+            overflow-y: auto; 
+            margin-top: 10px; 
+            white-space: pre-wrap;
+        }
 
-        /* Mobile tweaks */
-        @media (max-width: 768px) {
+        #error-msg { color: #ff4d4d; background: rgba(255, 77, 77, 0.1); padding: 12px; border-radius: 12px; margin-top: 15px; display: none; font-size: 0.9rem; }
+
+        @media (max-width: 850px) {
             .stats-grid { grid-template-columns: 1fr 1fr; }
-            .card-main { grid-column: span 2; flex-direction: column; text-align: center; }
-            .desc { grid-column: span 2; }
+            .card-header, .card.full { grid-column: span 2; }
+            .card-header { flex-direction: column; text-align: center; align-items: center; }
         }
     </style>
 </head>
 <body>
 
-    <div class="search-wrapper">
-        <h1>Roblox Stats</h1>
-        <p class="subtitle">Enter a Place ID or Game URL to view live data</p>
+    <div class="header">
+        <h1>RoStats</h1>
+        <p class="subtitle">Live game metrics powered by RoProxy</p>
         
         <div class="search-box">
-            <input type="text" id="idInput" placeholder="Place ID (e.g. 920587237) or URL...">
-            <button id="searchBtn" onclick="search()">Analyze</button>
+            <input type="text" id="idInput" placeholder="Paste Place ID or Game URL...">
+            <button id="searchBtn" onclick="initSearch()">Analyze</button>
         </div>
-        <p id="error-msg"></p>
+        <div id="error-msg"></div>
     </div>
 
-    <div id="history-box">
-        <span class="history-label">Recently Searched</span>
+    <div id="history-section">
+        <span class="section-label">Recently Analyzed</span>
         <div class="history-list" id="histList"></div>
     </div>
 
     <div class="stats-grid" id="statsGrid">
-        <div class="card card-main">
+        <div class="card card-header">
             <img id="gIcon" src="">
-            <div>
+            <div class="header-text">
                 <h2 id="gTitle">Game Name</h2>
                 <p id="gCreator" style="color: var(--accent); font-weight: 600;"></p>
             </div>
         </div>
 
         <div class="card">
-            <p class="label">Playing Now</p>
+            <p class="label">Playing</p>
             <p class="value" id="valPlaying">0</p>
         </div>
         <div class="card">
-            <p class="label">Total Visits</p>
+            <p class="label">Visits</p>
             <p class="value" id="valVisits">0</p>
+        </div>
+        <div class="card">
+            <p class="label">Likes</p>
+            <p class="value" id="valLikes">0%</p>
         </div>
         <div class="card">
             <p class="label">Favorites</p>
             <p class="value" id="valFavs">0</p>
         </div>
-        <div class="card">
-            <p class="label">Like Ratio</p>
-            <p class="value" id="valLikes">0%</p>
+
+        <div class="card wide">
+            <p class="label">Created</p>
+            <p class="value" id="valCreated" style="font-size: 1.3rem;">-</p>
         </div>
+        <div class="card wide">
+            <p class="label">Updated</p>
+            <p class="value" id="valUpdated" style="font-size: 1.3rem;">-</p>
+        </div>
+
         <div class="card">
-            <p class="label">Max Players</p>
+            <p class="label">Server Limit</p>
             <p class="value" id="valMax">0</p>
         </div>
         <div class="card">
-            <p class="label">Created</p>
-            <p class="value" id="valCreated" style="font-size: 1.1rem;">-</p>
-        </div>
-        <div class="card">
-            <p class="label">Last Update</p>
-            <p class="value" id="valUpdated" style="font-size: 1.1rem;">-</p>
-        </div>
-        <div class="card">
             <p class="label">Genre</p>
-            <p class="value" id="valGenre" style="font-size: 1.1rem;">-</p>
+            <p class="value" id="valGenre" style="font-size: 1.3rem;">-</p>
         </div>
 
-        <div class="card desc">
-            <p class="label">Description</p>
-            <div id="gDesc"></div>
+        <div class="card full">
+            <p class="label">Game Description</p>
+            <div id="description"></div>
         </div>
     </div>
 
     <script>
-        const PROXY = "https://corsproxy.io/?";
+        // RoProxy Base URLs
+        const RO_PROXY = "https://roproxy.com"; 
+        // We still use a CORS wrapper to ensure the browser doesn't block RoProxy subdomains
+        const CORS_WRAP = "https://corsproxy.io/?";
 
-        // Load history on startup
         document.addEventListener('DOMContentLoaded', renderHistory);
 
-        async function search(manualId = null) {
+        async function initSearch(manualId = null) {
             let input = manualId || document.getElementById('idInput').value.trim();
             const btn = document.getElementById('searchBtn');
             const error = document.getElementById('error-msg');
             const grid = document.getElementById('statsGrid');
 
-            // 1. Extract ID from URL if necessary
+            // Extract ID from string/URL
             const idMatch = input.match(/\d+/);
             const placeId = idMatch ? idMatch[0] : null;
 
             if (!placeId) {
-                showError("Please enter a valid Place ID or URL.");
+                showError("Invalid entry. Please provide a Place ID or Roblox URL.");
                 return;
             }
 
-            // UI Feedback
             btn.disabled = true;
-            btn.innerText = "Processing...";
+            btn.innerText = "Fetching...";
             error.style.display = "none";
             grid.style.display = "none";
 
             try {
-                // Step A: Convert Place ID to Universe ID
-                const univRes = await fetch(`${PROXY}https://apis.roblox.com/universes/v1/places/${placeId}/universe`);
-                if (!univRes.ok) throw new Error("Place not found. Is the ID correct?");
+                // 1. Get Universe ID via RoProxy
+                const univUrl = `${CORS_WRAP}https://apis.roproxy.com/universes/v1/places/${placeId}/universe`;
+                const univRes = await fetch(univUrl);
+                if (!univRes.ok) throw new Error("Could not find game. Verify the Place ID.");
                 const univData = await univRes.json();
                 const uID = univData.universeId;
 
-                // Step B: Fetch Full Stats
+                // 2. Fetch Detailed Stats via RoProxy Subdomains
                 const [gInfo, gVotes, gIcon] = await Promise.all([
-                    fetch(`${PROXY}https://games.roblox.com/v1/games?universeIds=${uID}`).then(r => r.json()),
-                    fetch(`${PROXY}https://games.roblox.com/v1/games/votes?universeIds=${uID}`).then(r => r.json()),
-                    fetch(`${PROXY}https://thumbnails.roblox.com/v1/games/icons?universeIds=${uID}&size=150x150&format=Png`).then(r => r.json())
+                    fetch(`${CORS_WRAP}https://games.roproxy.com/v1/games?universeIds=${uID}`).then(r => r.json()),
+                    fetch(`${CORS_WRAP}https://games.roproxy.com/v1/games/votes?universeIds=${uID}`).then(r => r.json()),
+                    fetch(`${CORS_WRAP}https://thumbnails.roproxy.com/v1/games/icons?universeIds=${uID}&size=150x150&format=Png`).then(r => r.json())
                 ]);
 
                 const data = gInfo.data[0];
                 const votes = gVotes.data[0];
                 const icon = gIcon.data[0].imageUrl;
 
-                // Step C: Update UI
+                // 3. Populate UI
                 document.getElementById('gTitle').innerText = data.name;
                 document.getElementById('gCreator').innerText = `by ${data.creator.name}`;
                 document.getElementById('gIcon').src = icon;
-                document.getElementById('gDesc').innerText = data.description || "No description.";
+                document.getElementById('description').innerText = data.description || "No description provided.";
                 
                 document.getElementById('valPlaying').innerText = data.playing.toLocaleString();
-                document.getElementById('valVisits').innerText = formatNum(data.visits);
-                document.getElementById('valFavs').innerText = formatNum(data.favoritedCount);
+                document.getElementById('valVisits').innerText = formatCompact(data.visits);
+                document.getElementById('valFavs').innerText = formatCompact(data.favoritedCount);
                 document.getElementById('valMax').innerText = data.maxPlayers;
                 document.getElementById('valGenre').innerText = data.genre;
-                document.getElementById('valCreated').innerText = new Date(data.created).toLocaleDateString();
-                document.getElementById('valUpdated').innerText = new Date(data.updated).toLocaleDateString();
+                document.getElementById('valCreated').innerText = new Date(data.created).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+                document.getElementById('valUpdated').innerText = new Date(data.updated).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
-                const likeRatio = votes.upVotes + votes.downVotes === 0 ? 0 : Math.round((votes.upVotes / (votes.upVotes + votes.downVotes)) * 100);
-                document.getElementById('valLikes').innerText = `${likeRatio}%`;
+                const likePerc = votes.upVotes + votes.downVotes === 0 ? 0 : Math.round((votes.upVotes / (votes.upVotes + votes.downVotes)) * 100);
+                document.getElementById('valLikes').innerText = `${likePerc}%`;
 
-                // Success
+                // Display
                 grid.style.display = "grid";
                 saveToHistory(placeId, data.name, icon);
 
@@ -288,31 +319,31 @@
             error.style.display = "block";
         }
 
-        function formatNum(n) {
+        function formatCompact(n) {
             return new Intl.NumberFormat('en-US', { notation: "compact", compactDisplay: "short" }).format(n);
         }
 
-        /* --- History Logic --- */
+        /* --- LocalStorage History --- */
         function saveToHistory(id, name, icon) {
-            let hist = JSON.parse(localStorage.getItem('rbx_hist') || '[]');
-            hist = hist.filter(x => x.id !== id); // Remove existing
+            let hist = JSON.parse(localStorage.getItem('rbx_history_v2') || '[]');
+            hist = hist.filter(x => x.id !== id); 
             hist.unshift({ id, name, icon });
-            if (hist.length > 6) hist.pop(); // Keep last 6
-            localStorage.setItem('rbx_hist', JSON.stringify(hist));
+            if (hist.length > 8) hist.pop();
+            localStorage.setItem('rbx_history_v2', JSON.stringify(hist));
             renderHistory();
         }
 
         function renderHistory() {
-            const box = document.getElementById('history-box');
+            const container = document.getElementById('history-section');
             const list = document.getElementById('histList');
-            const hist = JSON.parse(localStorage.getItem('rbx_hist') || '[]');
+            const hist = JSON.parse(localStorage.getItem('rbx_history_v2') || '[]');
 
             if (hist.length === 0) {
-                box.style.display = "none";
+                container.style.display = "none";
                 return;
             }
 
-            box.style.display = "block";
+            container.style.display = "block";
             list.innerHTML = "";
             hist.forEach(item => {
                 const div = document.createElement('div');
@@ -320,7 +351,7 @@
                 div.innerHTML = `<img src="${item.icon}"><span>${item.name}</span>`;
                 div.onclick = () => {
                     document.getElementById('idInput').value = item.id;
-                    search(item.id);
+                    initSearch(item.id);
                 };
                 list.appendChild(div);
             });
