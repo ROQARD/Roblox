@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roblox Stat Finder</title>
+    <style>
+        :root {
+            --bg-color: #0f0f13;
+            --card-bg: #1a1a20;
+            --accent: #00b06f; /* Roblox Green */
+            --text-primary: #ffffff;
+            --text-secondary: #a1a1aa;
+            --font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            font-family: var(--font-family);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        /* Search Section */
+        .search-container {
+            width: 100%;
+            max-width: 600px;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        h1 { margin-bottom: 1.5rem; font-weight: 700; letter-spacing: -1px; }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            background: var(--card-bg);
+            padding: 10px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            border: 1px solid #333;
+        }
+
+        input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: white;
+            padding: 10px;
+            font-size: 1rem;
+            outline: none;
+        }
+
+        /* Removed arrows from number input */
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        button {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        button:hover { transform: scale(1.05); }
+        button:disabled { background: #444; cursor: not-allowed; }
+
+        /* Error Message */
+        #error-msg {
+            color: #ff4d4d;
+            margin-top: 1rem;
+            display: none;
+        }
+
+        /* History Section */
+        #history-container {
+            width: 100%;
+            max-width: 600px;
+            margin-bottom: 2rem;
+            display: none; /* Hidden by default */
+        }
+
+        #history-list {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding-bottom: 10px;
+            scrollbar-width: thin;
+            scrollbar-color: #333 transparent;
+        }
+
+        .history-item {
+            background: var(--card-bg);
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            min-width: 160px;
+            transition: background 0.2s;
+            flex-shrink: 0;
+        }
+
+        .history-item:hover {
+            background: #2a2a30;
+            border-color: var(--accent);
+        }
+
+        .history-icon {
+            width: 30px;
+            height: 30px;
+            border-radius: 6px;
+            background: #000;
+            object-fit: cover;
+        }
+
+        .history-name {
+            font-size: 0.85rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100px;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        /* Stats Grid (Bento Box Style) */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: auto auto;
+            gap: 1.5rem;
+            width: 100%;
+            max-width: 1000px;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.5s ease;
+        }
+
+        .stats-grid.visible { opacity: 1; transform: translateY(0); }
+
+        .card {
+            background: var(--card-bg);
+            padding: 1.5rem;
+            border-radius: 16px;
+            border: 1px solid #2a2a30;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .card h3 { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .card .value { font-size: 1.5rem; font-weight: 700; }
+
+        /* Specific Card Layouts */
+        .card-header {
+            grid-column: span 4;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            background: linear-gradient(145deg, #1a1a20, #22222a);
+        }
+
+        .game-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 12px;
+            object-fit: cover;
+            background: #333;
+        }
+
+        .game-info h2 { font-size: 1.8rem; margin-bottom: 5px; }
+        .creator { color: var(--text-secondary); font-size: 0.9rem; }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .stats-grid { grid-template-columns: 1fr 1fr; }
+            .card-header { grid-column: span 2; flex-direction: column; text-align: center; }
+            .card[style*="grid-column: span 4"] { grid-column: span 2 !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="search-container">
+        <h1>Roblox Game Analytics</h1>
+        <div class="input-group">
+            <input type="number" id="placeIdInput" placeholder="Enter Game ID (e.g., 920587237)" />
+            <button onclick="fetchStats()" id="searchBtn">Find</button>
+        </div>
+        <p id="error-msg">Could not find game. Check ID and try again.</p>
+    </div>
+
+    <div id="history-container">
+        <h3 style="color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">Recent Searches</h3>
+        <div id="history-list">
+            </div>
+    </div>
+
+    <div class="stats-grid" id="results">
+        <div class="card card-header">
+            <img src="" alt="Icon" class="game-icon" id="gameIcon">
+            <div class="game-info">
+                <h2 id="gameTitle">Game Title</h2>
+                <p class="creator">By <span id="gameCreator">Creator</span></p>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>Active Playing</h3>
+            <div class="value" id="playing">0</div>
+        </div>
+        
+        <div class="card">
+            <h3>Total Visits</h3>
+            <div class="value" id="visits">0</div>
+        </div>
+
+        <div class="card">
+            <h3>Favorites</h3>
+            <div class="value" id="favorites">0</div>
+        </div>
+
+        <div class="card">
+            <h3>Likes (Ratio)</h3>
+            <div class="value" id="likes">0%</div>
+        </div>
+
+        <div class="card">
+            <h3>Server Size</h3>
+            <div class="value" id="serverSize">0</div>
+        </div>
+
+        <div class="card">
+            <h3>Created</h3>
+            <div class="value" id="created">2023</div>
+        </div>
+
+        <div class="card">
+            <h3>Updated</h3>
+            <div class="value" id="updated">Today</div>
+        </div>
+        
+        <div class="card" style="grid-column: span 4;">
+            <h3>Description</h3>
+            <div class="value" id="desc" style="font-size: 0.9rem; font-weight: 400; line-height: 1.5; color: #ccc; margin-top: 10px; max-height: 150px; overflow-y: auto;"></div>
+        </div>
+    </div>
+
+    <script>
+        const PROXY_URL = 'https://corsproxy.io/?'; 
+
+        // Load history when page opens
+        document.addEventListener('DOMContentLoaded', renderHistory);
+
+        async function fetchStats(inputPlaceId = null) {
+            // Determine which ID to use (typed input or clicked history item)
+            let placeId = inputPlaceId;
+            if (!placeId) {
+                placeId = document.getElementById('placeIdInput').value.trim();
+            }
+
+            const btn = document.getElementById('searchBtn');
+            const grid = document.getElementById('results');
+            const errorMsg = document.getElementById('error-msg');
+
+            if (!placeId) return;
+
+            // Reset UI state
+            btn.disabled = true;
+            btn.innerText = "Loading...";
+            grid.classList.remove('visible');
+            errorMsg.style.display = 'none';
+
+            try {
+                // 1. Get Universe ID from Place ID
+                const universeRes = await fetch(`${PROXY_URL}https://apis.roblox.com/universes/v1/places/${placeId}/universe`);
+                
+                if (!universeRes.ok) throw new Error("Invalid ID");
+                
+                const universeData = await universeRes.json();
+                const universeId = universeData.universeId;
+
+                // 2. Fetch all stats in parallel
+                const [gamesRes, votesRes, iconRes] = await Promise.all([
+                    fetch(`${PROXY_URL}https://games.roblox.com/v1/games?universeIds=${universeId}`),
+                    fetch(`${PROXY_URL}https://games.roblox.com/v1/games/votes?universeIds=${universeId}`),
+                    fetch(`${PROXY_URL}https://thumbnails.roblox.com/v1/games/icons?universeIds=${universeId}&size=150x150&format=Png&isCircular=false`)
+                ]);
+
+                const gamesData = await gamesRes.json();
+                const votesData = await votesRes.json();
+                const iconData = await iconRes.json();
+
+                const game = gamesData.data[0];
+                const votes = votesData.data[0];
+                const icon = iconData.data[0].imageUrl;
+
+                // 3. Update DOM elements
+                document.getElementById('gameTitle').innerText = game.name;
+                document.getElementById('gameCreator').innerText = game.creator.name;
+                document.getElementById('gameIcon').src = icon;
+                document.getElementById('desc').innerText = game.description;
+                
+                document.getElementById('playing').innerText = formatNumber(game.playing);
+                document.getElementById('visits').innerText = formatNumber(game.visits);
+                document.getElementById('favorites').innerText = formatNumber(game.favoritedCount);
+                document.getElementById('serverSize').innerText = game.maxPlayers;
+                
+                // Calculate Like Ratio
+                const totalVotes = votes.upVotes + votes.downVotes;
+                const ratio = totalVotes === 0 ? 0 : Math.round((votes.upVotes / totalVotes) * 100);
+                document.getElementById('likes').innerText = `${ratio}%`;
+                
+                // Dates
+                document.getElementById('created').innerText = new Date(game.created).toLocaleDateString();
+                document.getElementById('updated').innerText = new Date(game.updated).toLocaleDateString();
+
+                // 4. Save to History
+                saveToHistory(placeId, game.name, icon);
+
+                // Show Grid
+                grid.classList.add('visible');
+
+            } catch (err) {
+                console.error(err);
+                errorMsg.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Find";
+            }
+        }
+
+        // --- History Logic ---
+
+        function saveToHistory(id, name, icon) {
+            let history = JSON.parse(localStorage.getItem('roblox_history') || '[]');
+            
+            // Remove if already exists (to prevent duplicates)
+            history = history.filter(item => item.id !== id);
+            
+            // Add new item to start of array
+            history.unshift({ id, name, icon });
+            
+            // Limit to 5 items max
+            if (history.length > 5) history.pop();
+            
+            localStorage.setItem('roblox_history', JSON.stringify(history));
+            renderHistory();
+        }
+
+        function renderHistory() {
+            const container = document.getElementById('history-container');
+            const list = document.getElementById('history-list');
+            const history = JSON.parse(localStorage.getItem('roblox_history') || '[]');
+
+            if (history.length === 0) {
+                container.style.display = 'none';
+                return;
+            }
+
+            container.style.display = 'block';
+            list.innerHTML = ''; // Clear current list
+
+            history.forEach(game => {
+                const item = document.createElement('div');
+                item.className = 'history-item';
+                item.innerHTML = `
+                    <img src="${game.icon}" class="history-icon" alt="icon">
+                    <span class="history-name">${game.name}</span>
+                `;
+                // When clicked, run fetchStats with this ID
+                item.onclick = () => {
+                    document.getElementById('placeIdInput').value = game.id;
+                    fetchStats(game.id);
+                };
+                list.appendChild(item);
+            });
+        }
+
+        // Helper to format numbers (e.g., 1,200,000 -> 1.2M)
+        function formatNumber(num) {
+            return new Intl.NumberFormat('en-US', { notation: "compact", compactDisplay: "short" }).format(num);
+        }
+    </script>
+</body>
+</html>
