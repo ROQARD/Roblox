@@ -3,358 +3,183 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Roblox Stats | RoProxy Edition</title>
+    <title>Roblox Stats | Stable Edition</title>
     <style>
         :root {
-            --bg: #08080a;
-            --panel: #121216;
+            --bg: #0d0d12;
+            --card: #16161e;
             --accent: #00ff88;
             --text: #ffffff;
             --text-dim: #94a3b8;
-            --border: 1px solid rgba(255, 255, 255, 0.05);
-            --card-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            --error: #ff4d4d;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             background-color: var(--bg);
             color: var(--text);
-            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            font-family: 'Inter', -apple-system, sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
-            min-height: 100vh;
             padding: 40px 20px;
+            min-height: 100vh;
         }
 
-        /* --- Header & Search --- */
-        .header {
-            width: 100%;
-            max-width: 700px;
-            text-align: center;
-            margin-bottom: 40px;
-        }
-
-        h1 { font-size: 2.8rem; margin-bottom: 10px; letter-spacing: -1.5px; font-weight: 800; }
-        .subtitle { color: var(--text-dim); margin-bottom: 30px; font-size: 1.1rem; }
-
-        .search-box {
+        .search-area { width: 100%; max-width: 600px; text-align: center; margin-bottom: 40px; }
+        h1 { font-size: 2.5rem; margin-bottom: 10px; letter-spacing: -1px; }
+        
+        .input-box {
             display: flex;
-            background: var(--panel);
-            border: var(--border);
+            background: var(--card);
             padding: 10px;
-            border-radius: 20px;
-            box-shadow: var(--card-shadow);
-            transition: border-color 0.3s;
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.1);
         }
-
-        .search-box:focus-within { border-color: var(--accent); }
 
         input {
             flex: 1;
             background: transparent;
             border: none;
             color: white;
-            padding: 12px 20px;
-            font-size: 1.1rem;
+            padding: 12px;
+            font-size: 1rem;
             outline: none;
         }
 
-        button#searchBtn {
+        button {
             background: var(--accent);
             color: #000;
             border: none;
-            padding: 0 30px;
-            border-radius: 14px;
+            padding: 0 25px;
+            border-radius: 12px;
             font-weight: 700;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: 0.2s;
         }
 
-        button#searchBtn:hover { transform: scale(1.03); filter: brightness(1.1); }
-        button#searchBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+        button:hover { transform: scale(1.02); }
+        button:disabled { opacity: 0.5; }
 
-        /* --- History --- */
-        #history-section {
+        /* Stats Grid */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
             width: 100%;
-            max-width: 700px;
-            margin-bottom: 40px;
+            max-width: 800px;
             display: none;
         }
 
-        .section-label {
-            font-size: 0.7rem;
-            text-transform: uppercase;
-            color: var(--text-dim);
-            letter-spacing: 2px;
-            margin-bottom: 15px;
-            display: block;
-            font-weight: 700;
-        }
-
-        .history-list { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 10px; scrollbar-width: none; }
-        .history-list::-webkit-scrollbar { display: none; }
-
-        .hist-card {
-            background: var(--panel);
-            border: var(--border);
-            padding: 10px 15px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            cursor: pointer;
-            flex-shrink: 0;
-            transition: background 0.2s;
-        }
-
-        .hist-card:hover { background: #1a1a20; border-color: var(--accent); }
-        .hist-card img { width: 32px; height: 32px; border-radius: 8px; object-fit: cover; }
-        .hist-card span { font-size: 0.9rem; font-weight: 500; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-        /* --- Stats Bento Grid --- */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 20px;
-            width: 100%;
-            max-width: 1000px;
-            display: none; /* Injected via JS */
-        }
-
         .card {
-            background: var(--panel);
-            border: var(--border);
-            padding: 24px;
-            border-radius: 24px;
-            box-shadow: var(--card-shadow);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
+            background: var(--card);
+            padding: 25px;
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.05);
         }
 
-        .card-header { 
-            grid-column: span 4; 
-            flex-direction: row; 
-            justify-content: flex-start; 
-            gap: 30px; 
-            background: linear-gradient(145deg, #121216 0%, #1a1a22 100%); 
-        }
+        .card-big { grid-column: span 2; display: flex; align-items: center; gap: 20px; }
+        .card-big img { width: 80px; height: 80px; border-radius: 15px; }
 
-        .card-header img { width: 120px; height: 120px; border-radius: 20px; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
-        .header-text h2 { font-size: 2rem; margin-bottom: 5px; letter-spacing: -1px; }
-        
-        .label { font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; font-weight: 600; }
-        .value { font-size: 1.8rem; font-weight: 800; color: var(--text); }
-        
-        .card.wide { grid-column: span 2; }
-        .card.full { grid-column: span 4; }
+        .label { color: var(--text-dim); font-size: 0.8rem; text-transform: uppercase; margin-bottom: 5px; }
+        .value { font-size: 1.5rem; font-weight: 800; }
 
-        #description { 
-            font-size: 1rem; 
-            line-height: 1.6; 
-            color: #cbd5e1; 
-            max-height: 250px; 
-            overflow-y: auto; 
-            margin-top: 10px; 
-            white-space: pre-wrap;
-        }
-
-        #error-msg { color: #ff4d4d; background: rgba(255, 77, 77, 0.1); padding: 12px; border-radius: 12px; margin-top: 15px; display: none; font-size: 0.9rem; }
-
-        @media (max-width: 850px) {
-            .stats-grid { grid-template-columns: 1fr 1fr; }
-            .card-header, .card.full { grid-column: span 2; }
-            .card-header { flex-direction: column; text-align: center; align-items: center; }
+        #error-msg {
+            color: var(--error);
+            background: rgba(255, 77, 77, 0.1);
+            padding: 15px;
+            border-radius: 12px;
+            margin-top: 20px;
+            display: none;
+            width: 100%;
         }
     </style>
 </head>
 <body>
 
-    <div class="header">
-        <h1>RoStats</h1>
-        <p class="subtitle">Live game metrics powered by RoProxy</p>
-        
-        <div class="search-box">
-            <input type="text" id="idInput" placeholder="Paste Place ID or Game URL...">
-            <button id="searchBtn" onclick="initSearch()">Analyze</button>
+    <div class="search-area">
+        <h1>Roblox Explorer</h1>
+        <p style="color: var(--text-dim); margin-bottom: 25px;">Enter a Place ID to fetch real-time data</p>
+        <div class="input-box">
+            <input type="text" id="idInput" placeholder="Place ID (e.g. 920587237)">
+            <button id="searchBtn" onclick="fetchData()">Analyze</button>
         </div>
         <div id="error-msg"></div>
     </div>
 
-    <div id="history-section">
-        <span class="section-label">Recently Analyzed</span>
-        <div class="history-list" id="histList"></div>
-    </div>
-
-    <div class="stats-grid" id="statsGrid">
-        <div class="card card-header">
-            <img id="gIcon" src="">
-            <div class="header-text">
-                <h2 id="gTitle">Game Name</h2>
-                <p id="gCreator" style="color: var(--accent); font-weight: 600;"></p>
+    <div class="grid" id="statsGrid">
+        <div class="card card-big">
+            <img id="gameIcon" src="">
+            <div>
+                <h2 id="gameTitle">Game Name</h2>
+                <p id="gameCreator" style="color: var(--accent)"></p>
             </div>
         </div>
-
-        <div class="card">
-            <p class="label">Playing</p>
-            <p class="value" id="valPlaying">0</p>
-        </div>
-        <div class="card">
-            <p class="label">Visits</p>
-            <p class="value" id="valVisits">0</p>
-        </div>
-        <div class="card">
-            <p class="label">Likes</p>
-            <p class="value" id="valLikes">0%</p>
-        </div>
-        <div class="card">
-            <p class="label">Favorites</p>
-            <p class="value" id="valFavs">0</p>
-        </div>
-
-        <div class="card wide">
-            <p class="label">Created</p>
-            <p class="value" id="valCreated" style="font-size: 1.3rem;">-</p>
-        </div>
-        <div class="card wide">
-            <p class="label">Updated</p>
-            <p class="value" id="valUpdated" style="font-size: 1.3rem;">-</p>
-        </div>
-
-        <div class="card">
-            <p class="label">Server Limit</p>
-            <p class="value" id="valMax">0</p>
-        </div>
-        <div class="card">
-            <p class="label">Genre</p>
-            <p class="value" id="valGenre" style="font-size: 1.3rem;">-</p>
-        </div>
-
-        <div class="card full">
-            <p class="label">Game Description</p>
-            <div id="description"></div>
-        </div>
+        <div class="card"><div class="label">Playing Now</div><div class="value" id="valPlaying">0</div></div>
+        <div class="card"><div class="label">Visits</div><div class="value" id="valVisits">0</div></div>
+        <div class="card"><div class="label">Favorites</div><div class="value" id="valFavs">0</div></div>
+        <div class="card"><div class="label">Rating</div><div class="value" id="valLikes">0%</div></div>
     </div>
 
     <script>
-        // RoProxy Base URLs
-        const RO_PROXY = "https://roproxy.com"; 
-        // We still use a CORS wrapper to ensure the browser doesn't block RoProxy subdomains
-        const CORS_WRAP = "https://corsproxy.io/?";
+        // We use one reliable CORS proxy to hit official Roblox domains
+        const PROXY = "https://corsproxy.io/?";
 
-        document.addEventListener('DOMContentLoaded', renderHistory);
-
-        async function initSearch(manualId = null) {
-            let input = manualId || document.getElementById('idInput').value.trim();
+        async function fetchData() {
+            const input = document.getElementById('idInput').value.trim();
+            const placeId = input.match(/\d+/)?.[0];
             const btn = document.getElementById('searchBtn');
-            const error = document.getElementById('error-msg');
+            const errorDiv = document.getElementById('error-msg');
             const grid = document.getElementById('statsGrid');
 
-            // Extract ID from string/URL
-            const idMatch = input.match(/\d+/);
-            const placeId = idMatch ? idMatch[0] : null;
-
-            if (!placeId) {
-                showError("Invalid entry. Please provide a Place ID or Roblox URL.");
-                return;
-            }
+            if (!placeId) return alert("Enter a valid ID");
 
             btn.disabled = true;
-            btn.innerText = "Fetching...";
-            error.style.display = "none";
+            btn.innerText = "Searching...";
+            errorDiv.style.display = "none";
             grid.style.display = "none";
 
             try {
-                // 1. Get Universe ID via RoProxy
-                const univUrl = `${CORS_WRAP}https://apis.roproxy.com/universes/v1/places/${placeId}/universe`;
-                const univRes = await fetch(univUrl);
-                if (!univRes.ok) throw new Error("Could not find game. Verify the Place ID.");
-                const univData = await univRes.json();
-                const uID = univData.universeId;
+                // 1. Get Universe ID
+                const uRes = await fetch(`${PROXY}https://apis.roblox.com/universes/v1/places/${placeId}/universe`);
+                if (!uRes.ok) throw new Error("Could not find game. Is the ID correct?");
+                const uData = await uRes.json();
+                const universeId = uData.universeId;
 
-                // 2. Fetch Detailed Stats via RoProxy Subdomains
-                const [gInfo, gVotes, gIcon] = await Promise.all([
-                    fetch(`${CORS_WRAP}https://games.roproxy.com/v1/games?universeIds=${uID}`).then(r => r.json()),
-                    fetch(`${CORS_WRAP}https://games.roproxy.com/v1/games/votes?universeIds=${uID}`).then(r => r.json()),
-                    fetch(`${CORS_WRAP}https://thumbnails.roproxy.com/v1/games/icons?universeIds=${uID}&size=150x150&format=Png`).then(r => r.json())
+                // 2. Fetch all stats from official Roblox domains via CORS Proxy
+                const [info, votes, icons] = await Promise.all([
+                    fetch(`${PROXY}https://games.roblox.com/v1/games?universeIds=${universeId}`).then(r => r.json()),
+                    fetch(`${PROXY}https://games.roblox.com/v1/games/votes?universeIds=${universeId}`).then(r => r.json()),
+                    fetch(`${PROXY}https://thumbnails.roblox.com/v1/games/icons?universeIds=${universeId}&size=150x150&format=Png`).then(r => r.json())
                 ]);
 
-                const data = gInfo.data[0];
-                const votes = gVotes.data[0];
-                const icon = gIcon.data[0].imageUrl;
+                const game = info.data[0];
+                const vote = votes.data[0];
 
-                // 3. Populate UI
-                document.getElementById('gTitle').innerText = data.name;
-                document.getElementById('gCreator').innerText = `by ${data.creator.name}`;
-                document.getElementById('gIcon').src = icon;
-                document.getElementById('description').innerText = data.description || "No description provided.";
+                // 3. Update UI
+                document.getElementById('gameTitle').innerText = game.name;
+                document.getElementById('gameCreator').innerText = `by ${game.creator.name}`;
+                document.getElementById('gameIcon').src = icons.data[0].imageUrl;
+                document.getElementById('valPlaying').innerText = game.playing.toLocaleString();
+                document.getElementById('valVisits').innerText = nFormatter(game.visits);
+                document.getElementById('valFavs').innerText = nFormatter(game.favoritedCount);
                 
-                document.getElementById('valPlaying').innerText = data.playing.toLocaleString();
-                document.getElementById('valVisits').innerText = formatCompact(data.visits);
-                document.getElementById('valFavs').innerText = formatCompact(data.favoritedCount);
-                document.getElementById('valMax').innerText = data.maxPlayers;
-                document.getElementById('valGenre').innerText = data.genre;
-                document.getElementById('valCreated').innerText = new Date(data.created).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-                document.getElementById('valUpdated').innerText = new Date(data.updated).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+                const ratio = vote.upVotes + vote.downVotes === 0 ? 0 : Math.round((vote.upVotes / (vote.upVotes + vote.downVotes)) * 100);
+                document.getElementById('valLikes').innerText = `${ratio}%`;
 
-                const likePerc = votes.upVotes + votes.downVotes === 0 ? 0 : Math.round((votes.upVotes / (votes.upVotes + votes.downVotes)) * 100);
-                document.getElementById('valLikes').innerText = `${likePerc}%`;
-
-                // Display
                 grid.style.display = "grid";
-                saveToHistory(placeId, data.name, icon);
 
             } catch (err) {
-                showError(err.message);
+                errorDiv.innerText = "Error: Roblox is blocking this request. Try again in a few minutes or use a different ID.";
+                errorDiv.style.display = "block";
             } finally {
                 btn.disabled = false;
                 btn.innerText = "Analyze";
             }
         }
 
-        function showError(msg) {
-            const error = document.getElementById('error-msg');
-            error.innerText = msg;
-            error.style.display = "block";
-        }
-
-        function formatCompact(n) {
-            return new Intl.NumberFormat('en-US', { notation: "compact", compactDisplay: "short" }).format(n);
-        }
-
-        /* --- LocalStorage History --- */
-        function saveToHistory(id, name, icon) {
-            let hist = JSON.parse(localStorage.getItem('rbx_history_v2') || '[]');
-            hist = hist.filter(x => x.id !== id); 
-            hist.unshift({ id, name, icon });
-            if (hist.length > 8) hist.pop();
-            localStorage.setItem('rbx_history_v2', JSON.stringify(hist));
-            renderHistory();
-        }
-
-        function renderHistory() {
-            const container = document.getElementById('history-section');
-            const list = document.getElementById('histList');
-            const hist = JSON.parse(localStorage.getItem('rbx_history_v2') || '[]');
-
-            if (hist.length === 0) {
-                container.style.display = "none";
-                return;
-            }
-
-            container.style.display = "block";
-            list.innerHTML = "";
-            hist.forEach(item => {
-                const div = document.createElement('div');
-                div.className = 'hist-card';
-                div.innerHTML = `<img src="${item.icon}"><span>${item.name}</span>`;
-                div.onclick = () => {
-                    document.getElementById('idInput').value = item.id;
-                    initSearch(item.id);
-                };
-                list.appendChild(div);
-            });
+        function nFormatter(num) {
+            return new Intl.NumberFormat('en-US', { notation: "compact", compactDisplay: "short" }).format(num);
         }
     </script>
 </body>
