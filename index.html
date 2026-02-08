@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RoStats | Live Comparison</title>
+    <title>RoStats Ultimate Engine</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
         
@@ -30,7 +30,7 @@
             min-height: 100vh;
         }
 
-        .container { width: 100%; max-width: 1000px; }
+        .container { width: 100%; max-width: 1100px; }
 
         /* Search Section */
         .search-section {
@@ -43,7 +43,7 @@
             text-align: center;
         }
 
-        h1 { font-weight: 800; font-size: 2.5rem; letter-spacing: -2px; margin-bottom: 15px; }
+        h1 { font-weight: 800; font-size: 2.8rem; letter-spacing: -2px; margin-bottom: 15px; }
         .accent-text { color: var(--accent); }
         
         .compare-box {
@@ -74,7 +74,7 @@
             background: var(--accent);
             color: #000;
             border: none;
-            padding: 15px 35px;
+            padding: 15px 45px;
             border-radius: 14px;
             font-weight: 800;
             cursor: pointer;
@@ -125,6 +125,10 @@
         .diff-higher { color: var(--higher); }
         .diff-lower { color: var(--lower); }
 
+        .desc-box { grid-column: span 2; max-height: 80px; overflow-y: auto; color: #bbb; line-height: 1.5; font-size: 0.85rem; padding-right: 10px; }
+        .desc-box::-webkit-scrollbar { width: 4px; }
+        .desc-box::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+
         #status { font-size: 0.85rem; color: var(--accent); text-align: center; font-weight: 600; margin-top: 10px; }
     </style>
 </head>
@@ -134,7 +138,7 @@
         <div class="search-section">
             <h1>Ro<span class="accent-text">Stats</span></h1>
             <div class="compare-box">
-                <input type="text" id="id1" placeholder="Place ID 1">
+                <input type="text" id="id1" placeholder="Place ID 1 (Required)">
                 <span style="color:var(--text-dim); font-weight:800;">VS</span>
                 <input type="text" id="id2" placeholder="Place ID 2 (Optional)">
             </div>
@@ -150,11 +154,14 @@
     </div>
 
 <script>
+    // Proxied endpoints for maximum data access
     const _B64 = {
-        u: "aHR0cHM6Ly9hcGlzLnJvYmxveC5jb20vdW5pdmVyc2VzL3YxL3BsYWNlcy8=",
-        g: "aHR0cHM6Ly9nYW1lcy5yb2Jsb3guY29tL3YxL2dhbWVzP3VuaXZlcnNlSWRzPQ==",
-        v: "aHR0cHM6Ly9nYW1lcy5yb2Jsb3guY29tL3YxL2dhbWVzL3ZvdGVzP3VuaXZlcnNlSWRzPQ==",
-        i: "aHR0cHM6Ly90aHVtYm5haWxzLnJvYmxveC5jb20vdW5pdmVyc2VzL3YxL2ljb25zP3VuaXZlcnNlSWRzPQ=="
+        u: "aHR0cHM6Ly9hcGlzLnJvYmxveC5jb20vdW5pdmVyc2VzL3YxL3BsYWNlcy8=", // Get UniverseId
+        g: "aHR0cHM6Ly9nYW1lcy5yb2Jsb3guY29tL3YxL2dhbWVzP3VuaXZlcnNlSWRzPQ==", // General Stats
+        v: "aHR0cHM6Ly9nYW1lcy5yb2Jsb3guY29tL3YxL2dhbWVzL3ZvdGVzP3VuaXZlcnNlSWRzPQ==", // Likes/Dislikes
+        i: "aHR0cHM6Ly90aHVtYm5haWxzLnJvYmxveC5jb20vdW5pdmVyc2VzL3YxL2ljb25zP3VuaXZlcnNlSWRzPQ==", // Icon
+        b: "aHR0cHM6Ly9iYWRnZXMucm9ibG94LmNvbS92MS91bml2ZXJzZXMv", // Badges
+        p: "aHR0cHM6Ly9nYW1lcy5yb2Jsb3guY29tL3YxL2dhbWVzLw==", // Gamepasses/VIP
     };
 
     const PROXY = "https://api.codetabs.com/v1/proxy?quest=";
@@ -177,13 +184,17 @@
     }
 
     async function getGameData(pid) {
+        // 1. Get Universe ID
         const univ = await stealthFetch('u', pid + "/universe");
         const uid = univ.universeId;
 
-        const [game, vote, icon] = await Promise.all([
+        // 2. Fetch all data in parallel
+        const [game, vote, icon, badges, passes] = await Promise.all([
             stealthFetch('g', uid),
             stealthFetch('v', uid),
-            stealthFetch('i', uid + "&size=150x150&format=Png&isCircular=false")
+            stealthFetch('i', uid + "&size=150x150&format=Png&isCircular=false"),
+            stealthFetch('b', uid + "/badges?limit=1"), // Just need count
+            stealthFetch('p', uid + "/game-passes?limit=1") // Just need count
         ]);
 
         const d = game.data[0];
@@ -195,18 +206,24 @@
             name: d.name,
             creator: d.creator.name,
             icon: icon.data[0]?.imageUrl,
+            desc: d.description,
+            genre: d.genre,
+            // Main Stats
             active: d.playing,
             visits: d.visits,
             favs: d.favoritedCount,
             rating: ratio,
+            // Deep Stats
+            badges: badges.totalResults || 0,
+            passes: passes.totalResults || 0,
+            maxPlayers: d.maxPlayers,
+            // Raw data for comparison logic
             raw: { active: d.playing, visits: d.visits, favs: d.favoritedCount, rating: ratio }
         };
     }
 
     function createCard(data, type) {
-        let activeClass = "";
-        let visitsClass = "";
-        let favsClass = "";
+        let activeClass = "", visitsClass = "", favsClass = "";
 
         if (type === 'compare') {
             const other = data.otherRaw;
@@ -223,22 +240,17 @@
                     <div class="accent" style="font-weight:600;">By ${data.creator}</div>
                 </div>
             </div>
-            <div class="card">
-                <div class="label">Live Players</div>
-                <div class="value ${activeClass}">${smartFormat(data.active)}</div>
-            </div>
-            <div class="card">
-                <div class="label">Total Visits</div>
-                <div class="value ${visitsClass}">${smartFormat(data.visits)}</div>
-            </div>
-            <div class="card">
-                <div class="label">Favorites</div>
-                <div class="value ${favsClass}">${smartFormat(data.favs)}</div>
-            </div>
-            <div class="card">
-                <div class="label">Rating</div>
-                <div class="value">${data.rating}%</div>
-            </div>
+            <div class="card desc-box">${data.desc}</div>
+            
+            <div class="card"><div class="label">Live Players</div><div class="value ${activeClass}">${smartFormat(data.active)}</div></div>
+            <div class="card"><div class="label">Total Visits</div><div class="value ${visitsClass}">${smartFormat(data.visits)}</div></div>
+            <div class="card"><div class="label">Favorites</div><div class="value ${favsClass}">${smartFormat(data.favs)}</div></div>
+            <div class="card"><div class="label">Rating</div><div class="value">${data.rating}%</div></div>
+            
+            <div class="card"><div class="label">Badges</div><div class="value">${smartFormat(data.badges)}</div></div>
+            <div class="card"><div class="label">Game Passes</div><div class="value">${smartFormat(data.passes)}</div></div>
+            <div class="card"><div class="label">Genre</div><div class="value" style="font-size:1.1rem;">${data.genre}</div></div>
+            <div class="card"><div class="label">Max Players</div><div class="value">${data.maxPlayers}</div></div>
         `;
     }
 
@@ -249,7 +261,7 @@
         const grid = document.getElementById('compGrid');
 
         if (!id1) return;
-        status.innerText = "Connecting to RoStats bridge...";
+        status.innerText = "Querying RoProxy engines...";
         grid.style.display = "none";
 
         try {
@@ -260,7 +272,6 @@
                 const data2 = await getGameData(id2);
                 saveToHistory(id2, data2.name);
                 
-                // Add comparison markers to data
                 data1.otherRaw = data2.raw;
                 data2.otherRaw = data1.raw;
 
@@ -275,7 +286,7 @@
             grid.style.display = "grid";
 
         } catch (err) {
-            status.innerText = "Error: Invalid ID or API Blocked.";
+            status.innerText = "Error: API rate limit exceeded or invalid ID.";
             status.style.color = "#ff4d4d";
         }
     }
@@ -307,6 +318,5 @@
         });
     }
 </script>
-
 </body>
 </html>
