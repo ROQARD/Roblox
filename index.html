@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RoStats Ultimate Engine</title>
+    <title>RoStats | Auto-Refresh</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
         
@@ -108,6 +108,8 @@
             padding: 22px;
             border-radius: 24px;
             transition: 0.3s;
+            position: relative;
+            overflow: hidden;
         }
         
         .header-card {
@@ -120,10 +122,21 @@
 
         .header-card img { width: 90px; height: 90px; border-radius: 20px; }
         .label { font-size: 0.65rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 2px; font-weight: 700; margin-bottom: 8px; }
-        .value { font-size: 1.4rem; font-weight: 800; }
+        .value { font-size: 1.4rem; font-weight: 800; transition: transform 0.5s ease-out, color 0.5s; display: inline-block; }
         
         .diff-higher { color: var(--higher); }
         .diff-lower { color: var(--lower); }
+
+        /* Growth Animation */
+        .growth-up {
+            animation: slideUp 0.6s ease-out;
+            color: var(--higher) !important;
+        }
+        @keyframes slideUp {
+            0% { transform: translateY(10px); opacity: 0.5; }
+            50% { transform: translateY(-5px); opacity: 1; }
+            100% { transform: translateY(0); opacity: 1; }
+        }
 
         .desc-box { grid-column: span 2; max-height: 80px; overflow-y: auto; color: #bbb; line-height: 1.5; font-size: 0.85rem; padding-right: 10px; }
         .desc-box::-webkit-scrollbar { width: 4px; }
@@ -142,7 +155,7 @@
                 <span style="color:var(--text-dim); font-weight:800;">VS</span>
                 <input type="text" id="id2" placeholder="Place ID 2 (Optional)">
             </div>
-            <button onclick="compare()">Analyze</button>
+            <button onclick="manualCompare()">Analyze</button>
             <div id="status"></div>
             <div class="history-container" id="history"></div>
         </div>
@@ -154,17 +167,18 @@
     </div>
 
 <script>
-    // Proxied endpoints for maximum data access
+    const PROXY = "https://api.codetabs.com/v1/proxy?quest=";
     const _B64 = {
-        u: "aHR0cHM6Ly9hcGlzLnJvYmxveC5jb20vdW5pdmVyc2VzL3YxL3BsYWNlcy8=", // Get UniverseId
-        g: "aHR0cHM6Ly9nYW1lcy5yb2Jsb3guY29tL3YxL2dhbWVzP3VuaXZlcnNlSWRzPQ==", // General Stats
-        v: "aHR0cHM6Ly9nYW1lcy5yb2Jsb3guY29tL3YxL2dhbWVzL3ZvdGVzP3VuaXZlcnNlSWRzPQ==", // Likes/Dislikes
-        i: "aHR0cHM6Ly90aHVtYm5haWxzLnJvYmxveC5jb20vdW5pdmVyc2VzL3YxL2ljb25zP3VuaXZlcnNlSWRzPQ==", // Icon
-        b: "aHR0cHM6Ly9iYWRnZXMucm9ibG94LmNvbS92MS91bml2ZXJzZXMv", // Badges
-        p: "aHR0cHM6Ly9nYW1lcy5yb2Jsb3guY29tL3YxL2dhbWVzLw==", // Gamepasses/VIP
+        u: "aHR0cHM6Ly9hcGlzLnJvYmxveC5jb20vdW5pdmVyc2VzL3YxL3BsYWNlcy8=", 
+        g: "aHR0cHM6Ly9nYW1lcy5yb2Jsb3guY29tL3YxL2dhbWVzP3VuaXZlcnNlSWRzPQ==", 
+        v: "aHR0cHM6Ly9nYW1lcy5yb2Jsb3guY29tL3YxL2dhbWVzL3ZvdGVzP3VuaXZlcnNlSWRzPQ==", 
+        i: "aHR0cHM6Ly90aHVtYm5haWxzLnJvYmxveC5jb20vdW5pdmVyc2VzL3YxL2ljb25zP3VuaXZlcnNlSWRzPQ==", 
+        b: "aHR0cHM6Ly9iYWRnZXMucm9ibG94LmNvbS92MS91bml2ZXJzZXMv", 
+        p: "aHR0cHM6Ly9nYW1lcy5yb2Jsb3guY29tL3YxL2dhbWVzLw==", 
     };
 
-    const PROXY = "https://api.codetabs.com/v1/proxy?quest=";
+    let refreshInterval;
+    let lastData = { a: null, b: null };
 
     document.addEventListener('DOMContentLoaded', updateHistoryUI);
 
@@ -184,17 +198,15 @@
     }
 
     async function getGameData(pid) {
-        // 1. Get Universe ID
         const univ = await stealthFetch('u', pid + "/universe");
         const uid = univ.universeId;
 
-        // 2. Fetch all data in parallel
         const [game, vote, icon, badges, passes] = await Promise.all([
             stealthFetch('g', uid),
             stealthFetch('v', uid),
             stealthFetch('i', uid + "&size=150x150&format=Png&isCircular=false"),
-            stealthFetch('b', uid + "/badges?limit=1"), // Just need count
-            stealthFetch('p', uid + "/game-passes?limit=1") // Just need count
+            stealthFetch('b', uid + "/badges?limit=1"),
+            stealthFetch('p', uid + "/game-passes?limit=1")
         ]);
 
         const d = game.data[0];
@@ -208,28 +220,31 @@
             icon: icon.data[0]?.imageUrl,
             desc: d.description,
             genre: d.genre,
-            // Main Stats
             active: d.playing,
             visits: d.visits,
             favs: d.favoritedCount,
             rating: ratio,
-            // Deep Stats
             badges: badges.totalResults || 0,
             passes: passes.totalResults || 0,
             maxPlayers: d.maxPlayers,
-            // Raw data for comparison logic
-            raw: { active: d.playing, visits: d.visits, favs: d.favoritedCount, rating: ratio }
+            raw: { active: d.playing, visits: d.visits, favs: d.favoritedCount }
         };
     }
 
-    function createCard(data, type) {
+    function createCard(data, type, side) {
         let activeClass = "", visitsClass = "", favsClass = "";
+        let activeGrowth = "";
 
         if (type === 'compare') {
             const other = data.otherRaw;
             activeClass = data.raw.active > other.active ? "diff-higher" : (data.raw.active < other.active ? "diff-lower" : "");
             visitsClass = data.raw.visits > other.visits ? "diff-higher" : (data.raw.visits < other.visits ? "diff-lower" : "");
             favsClass = data.raw.favs > other.favs ? "diff-higher" : (data.raw.favs < other.favs ? "diff-lower" : "");
+        }
+
+        // Check for growth animation
+        if (lastData[side] && data.active > lastData[side].active) {
+            activeGrowth = "growth-up";
         }
 
         return `
@@ -242,7 +257,10 @@
             </div>
             <div class="card desc-box">${data.desc}</div>
             
-            <div class="card"><div class="label">Live Players</div><div class="value ${activeClass}">${smartFormat(data.active)}</div></div>
+            <div class="card">
+                <div class="label">Live Players</div>
+                <div class="value ${activeClass} ${activeGrowth}" id="${side}_active">${smartFormat(data.active)}</div>
+            </div>
             <div class="card"><div class="label">Total Visits</div><div class="value ${visitsClass}">${smartFormat(data.visits)}</div></div>
             <div class="card"><div class="label">Favorites</div><div class="value ${favsClass}">${smartFormat(data.favs)}</div></div>
             <div class="card"><div class="label">Rating</div><div class="value">${data.rating}%</div></div>
@@ -254,15 +272,14 @@
         `;
     }
 
-    async function compare() {
+    async function performComparison() {
         const id1 = document.getElementById('id1').value.trim().match(/\d+/)?.[0];
         const id2 = document.getElementById('id2').value.trim().match(/\d+/)?.[0];
         const status = document.getElementById('status');
         const grid = document.getElementById('compGrid');
 
         if (!id1) return;
-        status.innerText = "Querying RoProxy engines...";
-        grid.style.display = "none";
+        status.innerText = "Querying data...";
 
         try {
             const data1 = await getGameData(id1);
@@ -275,20 +292,31 @@
                 data1.otherRaw = data2.raw;
                 data2.otherRaw = data1.raw;
 
-                document.getElementById('sideA').innerHTML = createCard(data1, 'compare');
-                document.getElementById('sideB').innerHTML = createCard(data2, 'compare');
+                document.getElementById('sideA').innerHTML = createCard(data1, 'compare', 'a');
+                document.getElementById('sideB').innerHTML = createCard(data2, 'compare', 'b');
+                
+                lastData.a = data1;
+                lastData.b = data2;
             } else {
-                document.getElementById('sideA').innerHTML = createCard(data1, 'single');
+                document.getElementById('sideA').innerHTML = createCard(data1, 'single', 'a');
                 document.getElementById('sideB').innerHTML = "";
+                lastData.a = data1;
+                lastData.b = null;
             }
             
             status.innerText = "";
             grid.style.display = "grid";
 
         } catch (err) {
-            status.innerText = "Error: API rate limit exceeded or invalid ID.";
-            status.style.color = "#ff4d4d";
+            status.innerText = "Connection failed.";
+            status.color = "#ff4d4d";
         }
+    }
+
+    function manualCompare() {
+        performComparison();
+        clearInterval(refreshInterval);
+        refreshInterval = setInterval(performComparison, 20000); // 20 seconds
     }
 
     /* History System */
@@ -312,7 +340,7 @@
             chip.title = item.name;
             chip.onclick = () => {
                 document.getElementById('id1').value = item.id;
-                compare();
+                manualCompare();
             };
             container.appendChild(chip);
         });
