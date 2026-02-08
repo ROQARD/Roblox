@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RoStats | Single Monitor</title>
+    <title>RoStats | RoProxy Engine</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
         
@@ -81,7 +81,7 @@
         button:hover { transform: translateY(-2px); filter: brightness(1.1); }
 
         /* Dashboard Grid */
-        .comparison-grid { display: none; flex-direction: column; gap: 15px; }
+        .monitor-grid { display: none; flex-direction: column; gap: 15px; }
 
         .card {
             background: var(--glass);
@@ -129,27 +129,25 @@
             <div class="compare-box">
                 <input type="text" id="placeId" placeholder="Enter Place ID...">
             </div>
-            <button onclick="startMonitor()">Monitor</button>
+            <button onclick="startMonitor()">Connect via RoProxy</button>
             <div id="status"></div>
         </div>
 
-        <div class="comparison-grid" id="compGrid">
+        <div class="monitor-grid" id="compGrid">
             <div id="cardContent"></div>
         </div>
     </div>
 
 <script>
-    // Trying multiple proxies to get through strict filters
-    const PROXIES = [
-        "https://corsproxy.io/?",
-        "https://api.allorigins.win/raw?url="
-    ];
-    let currentProxyIndex = 0;
+    // Direct RoProxy configuration
+    const DOMAIN = "roproxy.com"; 
 
-    const _B64 = {
-        u: "aHR0cHM6Ly9hcGlzLnJvYmxveC5jb20vdW5pdmVyc2VzL3YxL3BsYWNlcy8=", 
-        g: "aHR0cHM6Ly9nYW1lcy5yb2Jsb3guY29tL3YxL2dhbWVzP3VuaXZlcnNlSWRzPQ==", 
-        i: "aHR0cHM6Ly90aHVtYm5haWxzLnJvYmxveC5jb20vdW5pdmVyc2VzL3YxL2ljb25zP3VuaXZlcnNlSWRzPQ==", 
+    // API Routes mapped to RoProxy subdomains
+    const APIS = {
+        universe: (id) => `https://apis.${DOMAIN}/universes/v1/places/${id}/universe`,
+        games: (uid) => `https://games.${DOMAIN}/v1/games?universeIds=${uid}`,
+        icon: (uid) => `https://thumbnails.${DOMAIN}/universes/v1/icons?universeIds=${uid}&size=150x150&format=Png&isCircular=false`,
+        passes: (uid) => `https://games.${DOMAIN}/v1/games/${uid}/game-passes?limit=10&sortOrder=Asc`
     };
 
     let refreshInterval;
@@ -157,22 +155,16 @@
 
     function smartFormat(n) {
         if (!n || isNaN(n)) return "0";
+        if (n >= 1e9) return (n / 1e9).toFixed(2) + "B";
         if (n >= 1e6) return (n / 1e6).toFixed(1) + "M";
         if (n >= 1e3) return (n / 1e3).toFixed(1) + "K";
         return n.toLocaleString();
     }
 
-    async function stealthFetch(key, suffix = "") {
-        const url = atob(_B64[key]) + suffix;
-        // Try the current proxy, if it fails, try the next one
-        try {
-            const res = await fetch(PROXIES[currentProxyIndex] + encodeURIComponent(url));
-            if (!res.ok) throw new Error("Proxy Failed");
-            return res.json();
-        } catch (e) {
-            currentProxyIndex = (currentProxyIndex + 1) % PROXIES.length;
-            throw e;
-        }
+    async function fetchData(url) {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("RoProxy Error");
+        return res.json();
     }
 
     async function getGameData() {
@@ -181,18 +173,23 @@
 
         const status = document.getElementById('status');
         const grid = document.getElementById('compGrid');
+        const cardContent = document.getElementById('cardContent');
 
         try {
-            const univ = await stealthFetch('u', pid + "/universe");
+            // 1. Get Universe ID
+            const univ = await fetchData(APIS.universe(pid));
             const uid = univ.universeId;
 
-            const [game, icon] = await Promise.all([
-                stealthFetch('g', uid),
-                stealthFetch('i', uid + "&size=150x150&format=Png&isCircular=false")
+            // 2. Fetch Data
+            const [game, icon, passes] = await Promise.all([
+                fetchData(APIS.games(uid)),
+                fetchData(APIS.icon(uid)),
+                fetchData(APIS.passes(uid))
             ]);
 
             const d = game.data[0];
             const currentPlayers = d.playing;
+            const passCount = passes.data.length; // Basic count of first page
             
             // Ticker Logic
             let activeClass = "";
@@ -202,7 +199,7 @@
             lastPlayerCount = currentPlayers;
 
             // Render
-            document.getElementById('cardContent').innerHTML = `
+            cardContent.innerHTML = `
                 <div class="card header-card">
                     <img src="${icon.data[0]?.imageUrl}">
                     <div>
@@ -210,18 +207,33 @@
                         <div class="accent" style="font-weight:600; color:var(--accent);">ID: ${pid}</div>
                     </div>
                 </div>
-                <div class="card desc-box">${d.description}</div>
+                
+                <div class="card desc-box">${d.description || "No description."}</div>
+                
                 <div class="card">
                     <div class="label">Live Players</div>
-                    <div class="value ${activeClass}">${smartFormat(currentPlayers)}</div>
+                    <div class="value ${activeClass}" style="font-size: 2rem;">${smartFormat(currentPlayers)}</div>
+                </div>
+
+                <div class="card" style="display:flex; flex-direction:row; justify-content:space-between; align-items:center;">
+                   <div>
+                        <div class="label">Total Visits</div>
+                        <div class="value" style="font-size:1.2rem;">${smartFormat(d.visits)}</div>
+                   </div>
+                   <div style="text-align:right;">
+                        <div class="label">Game Passes</div>
+                        <div class="value" style="font-size:1.2rem;">${passCount}+</div>
+                   </div>
                 </div>
             `;
             
             grid.style.display = "flex";
-            status.innerText = "Monitoring...";
+            status.innerText = "● Live via RoProxy";
+            status.style.color = "#00ffa2";
 
         } catch (err) {
-            status.innerText = "Error: Blocked by network or invalid ID.";
+            console.error(err);
+            status.innerText = "Connection Failed: Check ID or Network.";
             status.style.color = "#ff4d4d";
         }
     }
