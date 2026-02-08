@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Roblox Stats | Stable Edition</title>
+    <title>Roblox Stat Finder | Anti-Block</title>
     <style>
         :root {
-            --bg: #0d0d12;
-            --card: #16161e;
+            --bg: #0b0b0e;
+            --card: #16161c;
             --accent: #00ff88;
             --text: #ffffff;
             --text-dim: #94a3b8;
-            --error: #ff4d4d;
+            --border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -26,15 +26,16 @@
             min-height: 100vh;
         }
 
-        .search-area { width: 100%; max-width: 600px; text-align: center; margin-bottom: 40px; }
-        h1 { font-size: 2.5rem; margin-bottom: 10px; letter-spacing: -1px; }
+        .container { width: 100%; max-width: 800px; }
+        .header { text-align: center; margin-bottom: 40px; }
         
-        .input-box {
+        .search-box {
             display: flex;
             background: var(--card);
-            padding: 10px;
-            border-radius: 16px;
-            border: 1px solid rgba(255,255,255,0.1);
+            padding: 8px;
+            border-radius: 14px;
+            border: var(--border);
+            margin-bottom: 20px;
         }
 
         input {
@@ -51,136 +52,192 @@
             background: var(--accent);
             color: #000;
             border: none;
-            padding: 0 25px;
-            border-radius: 12px;
+            padding: 0 24px;
+            border-radius: 10px;
             font-weight: 700;
             cursor: pointer;
-            transition: 0.2s;
         }
 
-        button:hover { transform: scale(1.02); }
-        button:disabled { opacity: 0.5; }
+        /* History */
+        #history-box { margin-bottom: 30px; display: none; }
+        .history-list { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 10px; }
+        .hist-item {
+            background: var(--card);
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            white-space: nowrap;
+            border: var(--border);
+        }
 
-        /* Stats Grid */
+        /* Bento Grid */
         .grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 20px;
-            width: 100%;
-            max-width: 800px;
+            gap: 15px;
             display: none;
         }
 
         .card {
             background: var(--card);
-            padding: 25px;
-            border-radius: 20px;
-            border: 1px solid rgba(255,255,255,0.05);
+            padding: 20px;
+            border-radius: 18px;
+            border: var(--border);
         }
 
-        .card-big { grid-column: span 2; display: flex; align-items: center; gap: 20px; }
-        .card-big img { width: 80px; height: 80px; border-radius: 15px; }
+        .card-main {
+            grid-column: span 2;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
 
-        .label { color: var(--text-dim); font-size: 0.8rem; text-transform: uppercase; margin-bottom: 5px; }
-        .value { font-size: 1.5rem; font-weight: 800; }
+        .card-main img { width: 70px; height: 70px; border-radius: 12px; }
+        .label { color: var(--text-dim); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
+        .value { font-size: 1.4rem; font-weight: 800; }
 
-        #error-msg {
-            color: var(--error);
-            background: rgba(255, 77, 77, 0.1);
-            padding: 15px;
-            border-radius: 12px;
-            margin-top: 20px;
-            display: none;
-            width: 100%;
+        #status {
+            text-align: center;
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+            color: var(--accent);
         }
     </style>
 </head>
 <body>
 
-    <div class="search-area">
-        <h1>Roblox Explorer</h1>
-        <p style="color: var(--text-dim); margin-bottom: 25px;">Enter a Place ID to fetch real-time data</p>
-        <div class="input-box">
-            <input type="text" id="idInput" placeholder="Place ID (e.g. 920587237)">
-            <button id="searchBtn" onclick="fetchData()">Analyze</button>
-        </div>
-        <div id="error-msg"></div>
+<div class="container">
+    <div class="header">
+        <h1>Roblox Analytics</h1>
+        <p style="color: var(--text-dim)">Fetch live data bypassing blocks</p>
+    </div>
+
+    <div class="search-box">
+        <input type="text" id="idInput" placeholder="Enter Place ID (e.g. 920587237)">
+        <button id="searchBtn" onclick="analyze()">Search</button>
+    </div>
+
+    <div id="status"></div>
+
+    <div id="history-box">
+        <div class="label" style="margin-bottom: 10px;">Recent</div>
+        <div class="history-list" id="histList"></div>
     </div>
 
     <div class="grid" id="statsGrid">
-        <div class="card card-big">
+        <div class="card card-main">
             <img id="gameIcon" src="">
             <div>
-                <h2 id="gameTitle">Game Name</h2>
-                <p id="gameCreator" style="color: var(--accent)"></p>
+                <h2 id="gameTitle">---</h2>
+                <p id="gameCreator" style="color: var(--accent); font-size: 0.9rem;"></p>
             </div>
         </div>
-        <div class="card"><div class="label">Playing Now</div><div class="value" id="valPlaying">0</div></div>
+        <div class="card"><div class="label">Playing</div><div class="value" id="valPlaying">0</div></div>
         <div class="card"><div class="label">Visits</div><div class="value" id="valVisits">0</div></div>
         <div class="card"><div class="label">Favorites</div><div class="value" id="valFavs">0</div></div>
-        <div class="card"><div class="label">Rating</div><div class="value" id="valLikes">0%</div></div>
+        <div class="card"><div class="label">Like Ratio</div><div class="value" id="valLikes">0%</div></div>
+        <div class="card" style="grid-column: span 2;">
+            <div class="label">Description</div>
+            <p id="valDesc" style="font-size: 0.9rem; line-height: 1.5; color: #ccc; margin-top: 10px;"></p>
+        </div>
     </div>
+</div>
 
-    <script>
-        // We use one reliable CORS proxy to hit official Roblox domains
-        const PROXY = "https://corsproxy.io/?";
+<script>
+    // Using AllOrigins as a more stable proxy wrapper
+    const PROXY = "https://api.allorigins.win/get?url=";
 
-        async function fetchData() {
-            const input = document.getElementById('idInput').value.trim();
-            const placeId = input.match(/\d+/)?.[0];
-            const btn = document.getElementById('searchBtn');
-            const errorDiv = document.getElementById('error-msg');
-            const grid = document.getElementById('statsGrid');
+    document.addEventListener('DOMContentLoaded', loadHistory);
 
-            if (!placeId) return alert("Enter a valid ID");
+    async function analyze(manualId = null) {
+        const input = manualId || document.getElementById('idInput').value.trim();
+        const placeId = input.match(/\d+/)?.[0];
+        const status = document.getElementById('status');
+        const grid = document.getElementById('statsGrid');
 
-            btn.disabled = true;
-            btn.innerText = "Searching...";
-            errorDiv.style.display = "none";
-            grid.style.display = "none";
+        if (!placeId) return;
 
-            try {
-                // 1. Get Universe ID
-                const uRes = await fetch(`${PROXY}https://apis.roblox.com/universes/v1/places/${placeId}/universe`);
-                if (!uRes.ok) throw new Error("Could not find game. Is the ID correct?");
-                const uData = await uRes.json();
-                const universeId = uData.universeId;
+        status.innerText = "Connecting to Roblox...";
+        grid.style.display = "none";
 
-                // 2. Fetch all stats from official Roblox domains via CORS Proxy
-                const [info, votes, icons] = await Promise.all([
-                    fetch(`${PROXY}https://games.roblox.com/v1/games?universeIds=${universeId}`).then(r => r.json()),
-                    fetch(`${PROXY}https://games.roblox.com/v1/games/votes?universeIds=${universeId}`).then(r => r.json()),
-                    fetch(`${PROXY}https://thumbnails.roblox.com/v1/games/icons?universeIds=${universeId}&size=150x150&format=Png`).then(r => r.json())
-                ]);
+        try {
+            // Step 1: Universe ID
+            const uData = await wrappedFetch(`https://apis.roblox.com/universes/v1/places/${placeId}/universe`);
+            const universeId = uData.universeId;
 
-                const game = info.data[0];
-                const vote = votes.data[0];
+            // Step 2: Parallel Fetch
+            status.innerText = "Extracting stats...";
+            const [info, votes, icons] = await Promise.all([
+                wrappedFetch(`https://games.roblox.com/v1/games?universeIds=${universeId}`),
+                wrappedFetch(`https://games.roblox.com/v1/games/votes?universeIds=${universeId}`),
+                wrappedFetch(`https://thumbnails.roblox.com/v1/games/icons?universeIds=${universeId}&size=150x150&format=Png`)
+            ]);
 
-                // 3. Update UI
-                document.getElementById('gameTitle').innerText = game.name;
-                document.getElementById('gameCreator').innerText = `by ${game.creator.name}`;
-                document.getElementById('gameIcon').src = icons.data[0].imageUrl;
-                document.getElementById('valPlaying').innerText = game.playing.toLocaleString();
-                document.getElementById('valVisits').innerText = nFormatter(game.visits);
-                document.getElementById('valFavs').innerText = nFormatter(game.favoritedCount);
-                
-                const ratio = vote.upVotes + vote.downVotes === 0 ? 0 : Math.round((vote.upVotes / (vote.upVotes + vote.downVotes)) * 100);
-                document.getElementById('valLikes').innerText = `${ratio}%`;
+            const game = info.data[0];
+            const vote = votes.data[0];
 
-                grid.style.display = "grid";
+            // Step 3: UI
+            document.getElementById('gameTitle').innerText = game.name;
+            document.getElementById('gameCreator').innerText = `by ${game.creator.name}`;
+            document.getElementById('gameIcon').src = icons.data[0].imageUrl;
+            document.getElementById('valPlaying').innerText = game.playing.toLocaleString();
+            document.getElementById('valVisits').innerText = nFormatter(game.visits);
+            document.getElementById('valFavs').innerText = nFormatter(game.favoritedCount);
+            document.getElementById('valDesc').innerText = game.description;
+            
+            const ratio = vote.upVotes + vote.downVotes === 0 ? 0 : Math.round((vote.upVotes / (vote.upVotes + vote.downVotes)) * 100);
+            document.getElementById('valLikes').innerText = `${ratio}%`;
 
-            } catch (err) {
-                errorDiv.innerText = "Error: Roblox is blocking this request. Try again in a few minutes or use a different ID.";
-                errorDiv.style.display = "block";
-            } finally {
-                btn.disabled = false;
-                btn.innerText = "Analyze";
-            }
+            status.innerText = "";
+            grid.style.display = "grid";
+            saveToHistory(placeId, game.name);
+
+        } catch (err) {
+            status.innerHTML = `<span style="color: #ff4d4d">Block Detected. Roblox is currently challenging this proxy.</span>`;
+            console.error(err);
         }
+    }
 
-        function nFormatter(num) {
-            return new Intl.NumberFormat('en-US', { notation: "compact", compactDisplay: "short" }).format(num);
-        }
-    </script>
+    // Special fetcher for AllOrigins
+    async function wrappedFetch(url) {
+        const response = await fetch(`${PROXY}${encodeURIComponent(url)}`);
+        if (!response.ok) throw new Error("Proxy failed");
+        const data = await response.json();
+        return JSON.parse(data.contents); // AllOrigins wraps everything in a 'contents' string
+    }
+
+    function nFormatter(num) {
+        return new Intl.NumberFormat('en-US', { notation: "compact", compactDisplay: "short" }).format(num);
+    }
+
+    /* History Functions */
+    function saveToHistory(id, name) {
+        let hist = JSON.parse(localStorage.getItem('rbx_history') || '[]');
+        hist = hist.filter(x => x.id !== id);
+        hist.unshift({ id, name });
+        if (hist.length > 5) hist.pop();
+        localStorage.setItem('rbx_history', JSON.stringify(hist));
+        loadHistory();
+    }
+
+    function loadHistory() {
+        const box = document.getElementById('history-box');
+        const list = document.getElementById('histList');
+        const hist = JSON.parse(localStorage.getItem('rbx_history') || '[]');
+
+        if (hist.length === 0) return;
+        box.style.display = "block";
+        list.innerHTML = "";
+        hist.forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'hist-item';
+            div.innerText = item.name;
+            div.onclick = () => analyze(item.id);
+            list.appendChild(div);
+        });
+    }
+</script>
+
 </body>
 </html>
