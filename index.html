@@ -3,122 +3,293 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Global Game Stats | 2026 Stealth</title>
+    <title>RoStats</title>
     <style>
-        :root { --bg: #050505; --card: #111; --accent: #00e676; --text: #eee; --dim: #888; }
-        body { background: var(--bg); color: var(--text); font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; }
-        .box { width: 100%; max-width: 500px; background: var(--card); padding: 20px; border-radius: 15px; border: 1px solid #222; margin-bottom: 20px; }
-        input { width: 100%; padding: 12px; margin: 10px 0; background: #000; border: 1px solid #333; color: #fff; border-radius: 8px; outline: none; }
-        button { width: 100%; padding: 12px; background: var(--accent); color: #000; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; margin-top: 5px; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; max-width: 500px; display: none; }
-        .stat { background: var(--card); padding: 15px; border-radius: 12px; border: 1px solid #222; text-align: center; }
-        .val { font-size: 1.2rem; font-weight: bold; color: var(--accent); }
-        .label { font-size: 0.7rem; color: var(--dim); text-transform: uppercase; }
-        #results { width: 100%; max-width: 500px; margin-top: 10px; }
-        .item { padding: 10px; background: #1a1a1a; margin-bottom: 5px; border-radius: 5px; cursor: pointer; display: flex; justify-content: space-between; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+        
+        :root {
+            --bg: #030303;
+            --glass: rgba(255, 255, 255, 0.03);
+            --border: rgba(255, 255, 255, 0.08);
+            --accent: #00ffa2;
+            --text: #ffffff;
+            --text-dim: #999;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+            min-height: 100vh;
+        }
+
+        .container { width: 100%; max-width: 850px; }
+
+        /* Search Section */
+        .search-section {
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border);
+            padding: 30px;
+            border-radius: 28px;
+            margin-bottom: 25px;
+        }
+
+        h1 { font-weight: 800; font-size: 2.2rem; letter-spacing: -1.5px; margin-bottom: 5px; text-align: center; }
+        
+        .input-box {
+            display: flex;
+            background: rgba(0,0,0,0.4);
+            padding: 8px;
+            border-radius: 18px;
+            border: 1px solid var(--border);
+            margin: 20px 0;
+        }
+
+        input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: white;
+            padding: 12px 18px;
+            font-size: 1rem;
+            outline: none;
+        }
+
+        button {
+            background: var(--accent);
+            color: #000;
+            border: none;
+            padding: 0 35px;
+            border-radius: 14px;
+            font-weight: 800;
+            cursor: pointer;
+            transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        button:hover { transform: translateY(-2px); filter: brightness(1.1); box-shadow: 0 5px 15px rgba(0, 255, 162, 0.3); }
+
+        /* History Section */
+        .history-container { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 10px; }
+        .history-chip {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border);
+            padding: 6px 14px;
+            border-radius: 100px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: 0.2s;
+            color: var(--text-dim);
+        }
+        .history-chip:hover { background: var(--accent); color: #000; border-color: var(--accent); }
+
+        /* Dashboard Grid */
+        .dashboard { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; display: none; }
+
+        .card {
+            background: var(--glass);
+            border: 1px solid var(--border);
+            padding: 22px;
+            border-radius: 24px;
+            display: flex;
+            flex-direction: column;
+            transition: 0.3s;
+        }
+        .card:hover { border-color: rgba(0, 255, 162, 0.3); background: rgba(255,255,255,0.05); }
+
+        .header-card {
+            grid-column: span 4;
+            flex-direction: row;
+            align-items: center;
+            gap: 25px;
+            background: linear-gradient(135deg, rgba(0,255,162,0.07) 0%, rgba(255,255,255,0.02) 100%);
+        }
+
+        .header-card img { width: 110px; height: 110px; border-radius: 22px; box-shadow: 0 15px 35px rgba(0,0,0,0.6); }
+
+        .label { font-size: 0.65rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 2px; font-weight: 700; margin-bottom: 10px; }
+        .value { font-size: 1.5rem; font-weight: 800; }
+        .accent { color: var(--accent); }
+        .small-val { font-size: 1.1rem; }
+
+        .rating-bar-bg { width: 100%; height: 6px; background: rgba(255,255,255,0.08); border-radius: 10px; margin-top: 12px; overflow: hidden; }
+        #ratingFill { height: 100%; background: var(--accent); width: 0%; transition: width 1.5s ease-out; }
+
+        .desc-box { grid-column: span 4; max-height: 100px; overflow-y: auto; color: #bbb; line-height: 1.6; font-size: 0.9rem; padding-right: 15px; }
+        .desc-box::-webkit-scrollbar { width: 4px; }
+        .desc-box::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 10px; }
+
+        #status { font-size: 0.85rem; color: var(--accent); text-align: center; font-weight: 600; margin-top: 10px; }
+
+        @media (max-width: 600px) {
+            .dashboard { grid-template-columns: 1fr 1fr; }
+            .header-card, .span-2, .desc-box { grid-column: span 2; }
+            .header-card { flex-direction: column; text-align: center; padding: 30px; }
+        }
     </style>
 </head>
 <body>
 
-    <div class="box">
-        <h2 style="margin-top:0">Stealth Explorer</h2>
-        <input type="text" id="userInput" placeholder="Enter Place ID or Username">
-        <button onclick="handleSearch('id')">Search Game ID</button>
-        <button onclick="handleSearch('user')" style="background: #333; color: #fff; margin-top:10px;">Find User's Recents</button>
-        <p id="msg" style="font-size: 0.8rem; color: var(--dim); margin-top:10px;"></p>
-    </div>
-
-    <div id="results"></div>
-
-    <div class="grid" id="stats">
-        <div class="stat" style="grid-column: span 2;">
-            <div class="label" id="gName">Game Name</div>
-            <div class="val" id="gCreator">Creator</div>
+    <div class="container">
+        <div class="search-section">
+            <h1>Analytics Pro <span style="color:var(--accent)">v3</span></h1>
+            <div class="input-box">
+                <input type="text" id="idInput" placeholder="Enter Place ID (e.g., 920587237)">
+                <button onclick="analyze()">Execute</button>
+            </div>
+            <div id="status"></div>
+            <div class="history-container" id="history"></div>
         </div>
-        <div class="stat"><div class="label">Playing</div><div class="val" id="vPlay">0</div></div>
-        <div class="stat"><div class="label">Visits</div><div class="val" id="vVisit">0</div></div>
-        <div class="stat"><div class="label">Likes</div><div class="val" id="vLike">0%</div></div>
-        <div class="stat"><div class="label">Favs</div><div class="val" id="vFav">0</div></div>
+
+        <div class="dashboard" id="dash">
+            <div class="card header-card">
+                <img id="gIcon" src="">
+                <div class="info">
+                    <h2 id="gTitle" style="font-size: 1.8rem; margin-bottom:5px;">---</h2>
+                    <div id="gCreator" class="accent" style="font-weight: 600;">By ---</div>
+                </div>
+            </div>
+
+            <div class="card"><div class="label">Live Players</div><div class="value accent" id="vActive">0</div></div>
+            <div class="card"><div class="label">Total Visits</div><div class="value" id="vVisits">0</div></div>
+            <div class="card"><div class="label">Favorites</div><div class="value" id="vFavs">0</div></div>
+            <div class="card">
+                <div class="label">Community Rating</div>
+                <div class="value" id="vRatio">0%</div>
+                <div class="rating-bar-bg"><div id="ratingFill"></div></div>
+            </div>
+
+            <div class="card"><div class="label">Max Server</div><div class="value small-val" id="vMax">0</div></div>
+            <div class="card"><div class="label">Genre</div><div class="value small-val" id="vGenre">-</div></div>
+            <div class="card"><div class="label">Voice Chat</div><div class="value small-val" id="vVC">-</div></div>
+            <div class="card"><div class="label">Private Servers</div><div class="value small-val" id="vPriv">-</div></div>
+
+            <div class="card" style="grid-column: span 2;"><div class="label">Release Date</div><div class="value small-val" id="vCreated">-</div></div>
+            <div class="card" style="grid-column: span 2;"><div class="label">Latest Update</div><div class="value small-val" id="vUpdated">-</div></div>
+
+            <div class="card desc-box" id="vDesc"></div>
+        </div>
     </div>
 
 <script>
-    // These are Base64 encoded URLs to hide "Roblox" from your device's filter
-    const endpoints = {
-        univ: "aHR0cHM6Ly9hcGlzLnJvYmxveC5jb20vdW5pdmVyc2VzL3YxL3BsYWNlcy8=", // apis.roblox.com...
-        game: "aHR0cHM6Ly9nYW1lcy5yb2Jsb3guY29tL3YxL2dhbWVzP3VuaXZlcnNlSWRzPQ==", // games.roblox.com...
-        vote: "aHR0cHM6Ly9nYW1lcy5yb2Jsb3guY29tL3YxL2dhbWVzL3ZvdGVzP3VuaXZlcnNlSWRzPQ==",
-        user: "aHR0cHM6Ly91c2Vycy5yb2Jsb3guY29tL3YxL3VzZXJzL3NlYXJjaD9rZXl3b3JkPQ==",
-        recent: "aHR0cHM6Ly9nYW1lcy5yb2Jsb3guY29tL3YxL3VzZXJzLw=="
+    const _B64 = {
+        u: "aHR0cHM6Ly9hcGlzLnJvYmxveC5jb20vdW5pdmVyc2VzL3YxL3BsYWNlcy8=",
+        g: "aHR0cHM6Ly9nYW1lcy5yb2Jsb3guY29tL3YxL2dhbWVzP3VuaXZlcnNlSWRzPQ==",
+        v: "aHR0cHM6Ly9nYW1lcy5yb2Jsb3guY29tL3YxL2dhbWVzL3ZvdGVzP3VuaXZlcnNlSWRzPQ==",
+        i: "aHR0cHM6Ly90aHVtYm5haWxzLnJvYmxveC5jb20vdW5pdmVyc2VzL3YxL2ljb25zP3VuaXZlcnNlSWRzPQ==",
+        s: "aHR0cHM6Ly9nYW1lcy5yb2Jsb3guY29tL3YxL2dhbWVzLw==" // /vip-servers
     };
 
     const PROXY = "https://api.codetabs.com/v1/proxy?quest=";
 
+    // Load History on start
+    document.addEventListener('DOMContentLoaded', updateHistoryUI);
+
+    function smartFormat(n) {
+        if (!n || isNaN(n)) return "0";
+        if (n >= 1e9) return (n / 1e9).toFixed(2) + "B";
+        if (n >= 1e6) return (n / 1e6).toFixed(1) + "M";
+        if (n >= 1e3) return (n / 1e3).toFixed(1) + "K";
+        return n.toLocaleString();
+    }
+
     async function stealthFetch(key, suffix = "") {
-        const url = atob(endpoints[key]) + suffix;
+        const url = atob(_B64[key]) + suffix;
         const res = await fetch(PROXY + encodeURIComponent(url));
+        if (!res.ok) throw "Bridge Error";
         return res.json();
     }
 
-    async function handleSearch(type) {
-        const input = document.getElementById('userInput').value.trim();
-        const msg = document.getElementById('msg');
-        const resDiv = document.getElementById('results');
-        resDiv.innerHTML = "";
-        msg.innerText = "Connecting via bridge...";
+    async function analyze(manualId = null) {
+        const input = manualId || document.getElementById('idInput').value.trim();
+        const pid = input.match(/\d+/)?.[0];
+        if (!pid) return;
+
+        const status = document.getElementById('status');
+        const dash = document.getElementById('dash');
+
+        status.innerText = "Initializing connection...";
+        dash.style.display = "none";
 
         try {
-            if (type === 'id') {
-                await showGameStats(input);
-            } else {
-                // Find User ID first
-                const userData = await stealthFetch('user', input + "&limit=1");
-                if (!userData.data.length) throw "User not found";
-                const uid = userData.data[0].id;
-                
-                // Get Recents
-                msg.innerText = "Fetching player history...";
-                const recentData = await stealthFetch('recent', `${uid}/games/list?model.recentGamesFilter=All`);
-                
-                recentData.data.forEach(g => {
-                    const d = document.createElement('div');
-                    d.className = 'item';
-                    d.innerHTML = `<span>${g.name}</span> <small style="color:var(--accent)">View Stats →</small>`;
-                    d.onclick = () => showGameStats(g.placeId);
-                    resDiv.appendChild(d);
-                });
-                msg.innerText = "Found " + recentData.data.length + " games. Select one:";
-            }
-        } catch (e) {
-            msg.innerText = "Error: Access Denied by Filter.";
-            console.error(e);
+            const univ = await stealthFetch('u', pid + "/universe");
+            const uid = univ.universeId;
+
+            const [game, vote, icon, priv] = await Promise.all([
+                stealthFetch('g', uid),
+                stealthFetch('v', uid),
+                stealthFetch('i', uid + "&size=150x150&format=Png&isCircular=false"),
+                stealthFetch('s', uid + "/vip-servers")
+            ]);
+
+            const d = game.data[0];
+            const v = vote.data[0];
+
+            // Fill UI
+            document.getElementById('gTitle').innerText = d.name;
+            document.getElementById('gCreator').innerText = "By " + d.creator.name;
+            document.getElementById('gIcon').src = icon.data[0]?.imageUrl;
+            document.getElementById('vDesc').innerText = d.description || "No description.";
+            
+            document.getElementById('vActive').innerText = smartFormat(d.playing);
+            document.getElementById('vVisits').innerText = smartFormat(d.visits);
+            document.getElementById('vFavs').innerText = smartFormat(d.favoritedCount);
+            document.getElementById('vMax').innerText = d.maxPlayers;
+            document.getElementById('vGenre').innerText = d.genre || "All";
+            document.getElementById('vVC').innerText = d.isVoiceEnabled ? "Supported" : "Disabled";
+            
+            const pPrice = priv.price === 0 ? "Free" : (priv.price ? priv.price + " R$" : "None");
+            document.getElementById('vPriv').innerText = pPrice;
+
+            document.getElementById('vCreated').innerText = new Date(d.created).toLocaleDateString('en-US', {day:'numeric', month:'short', year:'numeric'});
+            document.getElementById('vUpdated').innerText = new Date(d.updated).toLocaleDateString('en-US', {day:'numeric', month:'short', year:'numeric'});
+
+            const ratio = (v.upVotes + v.downVotes === 0) ? 0 : Math.round((v.upVotes / (v.upVotes + v.downVotes)) * 100);
+            document.getElementById('vRatio').innerText = ratio + "%";
+            document.getElementById('ratingFill').style.width = ratio + "%";
+
+            saveToHistory(pid, d.name);
+            status.innerText = "";
+            dash.style.display = "grid";
+
+        } catch (err) {
+            status.innerText = "Access Denied. Filter blocking proxy.";
+            status.style.color = "#ff4d4d";
         }
     }
 
-    async function showGameStats(pid) {
-        document.getElementById('msg').innerText = "Analyzing game " + pid + "...";
-        const uData = await stealthFetch('univ', pid + "/universe");
-        const uid = uData.universeId;
+    /* History System */
+    function saveToHistory(id, name) {
+        let history = JSON.parse(localStorage.getItem('rbx_history') || '[]');
+        // Remove existing entry for same ID
+        history = history.filter(item => item.id !== id);
+        // Add to front
+        history.unshift({ id, name });
+        // Keep only top 8
+        if (history.length > 8) history.pop();
+        localStorage.setItem('rbx_history', JSON.stringify(history));
+        updateHistoryUI();
+    }
 
-        const [g, v] = await Promise.all([
-            stealthFetch('game', uid),
-            stealthFetch('vote', uid)
-        ]);
-
-        const data = g.data[0];
-        const vote = v.data[0];
-
-        document.getElementById('gName').innerText = data.name;
-        document.getElementById('gCreator').innerText = "by " + data.creator.name;
-        document.getElementById('vPlay').innerText = data.playing.toLocaleString();
-        document.getElementById('vVisit').innerText = (data.visits / 1000000).toFixed(1) + "M";
-        document.getElementById('vFav').innerText = (data.favoritedCount / 1000).toFixed(1) + "K";
-        
-        const ratio = Math.round((vote.upVotes / (vote.upVotes + vote.downVotes)) * 100);
-        document.getElementById('vLike').innerText = ratio + "%";
-
-        document.getElementById('stats').style.display = "grid";
-        document.getElementById('msg').innerText = "Done.";
+    function updateHistoryUI() {
+        const container = document.getElementById('history');
+        const history = JSON.parse(localStorage.getItem('rbx_history') || '[]');
+        container.innerHTML = "";
+        history.forEach(item => {
+            const chip = document.createElement('div');
+            chip.className = 'history-chip';
+            chip.innerText = item.name.length > 15 ? item.name.substring(0, 15) + "..." : item.name;
+            chip.title = item.name;
+            chip.onclick = () => analyze(item.id);
+            container.appendChild(chip);
+        });
     }
 </script>
+
 </body>
 </html>
