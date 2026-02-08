@@ -3,18 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RoStats | RoProxy Engine</title>
+    <title>RoStats | Proxy Fixed</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
         
         :root {
-            --bg: #030303;
-            --glass: rgba(255, 255, 255, 0.03);
-            --border: rgba(255, 255, 255, 0.08);
-            --accent: #00ffa2;
+            --bg: #050505;
+            --glass: rgba(255, 255, 255, 0.05);
+            --border: rgba(255, 255, 255, 0.1);
+            --accent: #00ff88;
             --text: #ffffff;
-            --text-dim: #999;
-            --higher: #00ff88;
+            --text-dim: #888;
+            --error: #ff4444;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -29,129 +29,142 @@
             min-height: 100vh;
         }
 
-        .container { width: 100%; max-width: 600px; }
+        .container { width: 100%; max-width: 550px; }
 
-        /* Search Section */
-        .search-section {
+        .search-box {
             background: var(--glass);
-            backdrop-filter: blur(12px);
             border: 1px solid var(--border);
-            padding: 30px;
-            border-radius: 28px;
-            margin-bottom: 25px;
+            padding: 25px;
+            border-radius: 20px;
             text-align: center;
+            margin-bottom: 20px;
         }
 
-        h1 { font-weight: 800; font-size: 2.8rem; letter-spacing: -2px; margin-bottom: 15px; }
-        .accent-text { color: var(--accent); }
+        h1 { font-weight: 800; font-size: 2.2rem; margin-bottom: 15px; letter-spacing: -1px; }
         
-        .compare-box {
-            background: rgba(0,0,0,0.4);
-            padding: 15px;
-            border-radius: 18px;
-            border: 1px solid var(--border);
-            margin: 20px 0;
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
         }
 
         input {
-            width: 100%;
-            background: transparent;
-            border: none;
+            flex: 1;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--border);
             color: white;
             padding: 12px;
+            border-radius: 10px;
             font-size: 1rem;
             outline: none;
-            border-bottom: 2px solid var(--border);
+            transition: 0.2s;
         }
-        input:focus { border-bottom: 2px solid var(--accent); }
+        input:focus { border-color: var(--accent); }
 
         button {
             background: var(--accent);
             color: #000;
             border: none;
-            padding: 15px 45px;
-            border-radius: 14px;
-            font-weight: 800;
+            padding: 0 25px;
+            border-radius: 10px;
+            font-weight: 700;
             cursor: pointer;
             transition: 0.2s;
-            font-size: 1rem;
-            width: 100%;
+        }
+        button:hover { filter: brightness(1.1); transform: translateY(-1px); }
+
+        #status {
+            margin-top: 15px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            min-height: 20px;
         }
 
-        button:hover { transform: translateY(-2px); filter: brightness(1.1); }
+        /* Results */
+        .result-card {
+            display: none;
+            flex-direction: column;
+            gap: 12px;
+            animation: fadeIn 0.4s ease-out;
+        }
 
-        /* Dashboard Grid */
-        .monitor-grid { display: none; flex-direction: column; gap: 15px; }
-
-        .card {
+        .stat-row {
             background: var(--glass);
             border: 1px solid var(--border);
-            padding: 22px;
-            border-radius: 24px;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .header-card {
+            padding: 18px;
+            border-radius: 16px;
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            gap: 20px;
-            background: linear-gradient(135deg, rgba(0,255,162,0.07) 0%, rgba(255,255,255,0.02) 100%);
         }
 
-        .header-card img { width: 70px; height: 70px; border-radius: 20px; }
-        .label { font-size: 0.65rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 2px; font-weight: 700; margin-bottom: 8px; }
-        .value { font-size: 1.4rem; font-weight: 800; transition: transform 0.5s ease-out, color 0.5s; display: inline-block; }
-        
-        /* Growth Animation */
-        .growth-up {
-            animation: slideUp 0.6s ease-out;
-            color: var(--higher) !important;
+        .header {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            padding: 10px;
+            background: linear-gradient(90deg, rgba(0,255,136,0.1), transparent);
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            margin-bottom: 5px;
         }
-        @keyframes slideUp {
-            0% { transform: translateY(10px); opacity: 0.5; }
-            50% { transform: translateY(-5px); opacity: 1; }
-            100% { transform: translateY(0); opacity: 1; }
-        }
+        .header img { width: 64px; height: 64px; border-radius: 12px; }
 
-        .desc-box { max-height: 80px; overflow-y: auto; color: #bbb; line-height: 1.5; font-size: 0.85rem; padding-right: 10px; }
-        .desc-box::-webkit-scrollbar { width: 4px; }
-        .desc-box::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+        .label { font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; font-weight: 700; }
+        .value { font-size: 1.5rem; font-weight: 800; }
+        .live { color: var(--accent); }
 
-        #status { font-size: 0.85rem; color: var(--accent); text-align: center; font-weight: 600; margin-top: 10px; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <div class="search-section">
-            <h1>Ro<span class="accent-text">Stats</span></h1>
-            <div class="compare-box">
-                <input type="text" id="placeId" placeholder="Enter Place ID...">
-            </div>
-            <button onclick="startMonitor()">Connect via RoProxy</button>
-            <div id="status"></div>
+<div class="container">
+    <div class="search-box">
+        <h1>Ro<span style="color:var(--accent)">Stats</span></h1>
+        <div style="color:var(--text-dim); font-size:0.9rem;">Powered by RoProxy + CORS Bridge</div>
+        
+        <div class="input-group">
+            <input type="text" id="placeId" placeholder="Enter Place ID (e.g. 920587237)">
+            <button onclick="init()">Connect</button>
         </div>
-
-        <div class="monitor-grid" id="compGrid">
-            <div id="cardContent"></div>
-        </div>
+        <div id="status"></div>
     </div>
 
+    <div id="results" class="result-card">
+        <div class="header">
+            <img id="gIcon" src="">
+            <div style="text-align:left;">
+                <div id="gName" style="font-weight:700; font-size:1.1rem;">Game Name</div>
+                <div id="gCreator" style="color:var(--accent); font-size:0.85rem;">Creator</div>
+            </div>
+        </div>
+
+        <div class="stat-row">
+            <div>
+                <div class="label">Playing Now</div>
+                <div class="value live" id="gPlaying">0</div>
+            </div>
+            <div style="text-align:right;">
+                <div class="label">Visits</div>
+                <div class="value" id="gVisits" style="font-size:1.1rem;">0</div>
+            </div>
+        </div>
+
+        <div class="stat-row">
+            <div>
+                <div class="label">Last Update</div>
+                <div class="value" id="gUpdate" style="font-size:1rem;">-</div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
-    // Direct RoProxy configuration
+    // 1. We use 'codetabs' to bypass the browser CORS block.
+    // 2. We request 'roproxy.com' inside that bridge.
+    const BRIDGE = "https://api.codetabs.com/v1/proxy?quest=";
     const DOMAIN = "roproxy.com"; 
-
-    // API Routes mapped to RoProxy subdomains
-    const APIS = {
-        universe: (id) => `https://apis.${DOMAIN}/universes/v1/places/${id}/universe`,
-        games: (uid) => `https://games.${DOMAIN}/v1/games?universeIds=${uid}`,
-        icon: (uid) => `https://thumbnails.${DOMAIN}/universes/v1/icons?universeIds=${uid}&size=150x150&format=Png&isCircular=false`,
-        passes: (uid) => `https://games.${DOMAIN}/v1/games/${uid}/game-passes?limit=10&sortOrder=Asc`
-    };
-
-    let refreshInterval;
-    let lastPlayerCount = 0;
 
     function smartFormat(n) {
         if (!n || isNaN(n)) return "0";
@@ -161,88 +174,77 @@
         return n.toLocaleString();
     }
 
-    async function fetchData(url) {
-        const res = await fetch(url);
-        if (!res.ok) throw new Error("RoProxy Error");
+    async function fetchBridge(url) {
+        // Encode URL to prevent breaking the bridge query
+        const target = BRIDGE + encodeURIComponent(url);
+        const res = await fetch(target);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
     }
 
-    async function getGameData() {
-        const pid = document.getElementById('placeId').value.trim().match(/\d+/)?.[0];
-        if (!pid) return;
-
+    async function init() {
+        const input = document.getElementById('placeId').value.trim();
+        const id = input.match(/\d+/)?.[0];
         const status = document.getElementById('status');
-        const grid = document.getElementById('compGrid');
-        const cardContent = document.getElementById('cardContent');
+        const results = document.getElementById('results');
+
+        if (!id) {
+            status.innerText = "Please enter a valid numeric ID.";
+            status.style.color = "var(--error)";
+            return;
+        }
+
+        status.innerText = "Connecting to RoProxy Bridge...";
+        status.style.color = "var(--text-dim)";
+        results.style.display = 'none';
 
         try {
-            // 1. Get Universe ID
-            const univ = await fetchData(APIS.universe(pid));
-            const uid = univ.universeId;
+            let universeId = null;
 
-            // 2. Fetch Data
-            const [game, icon, passes] = await Promise.all([
-                fetchData(APIS.games(uid)),
-                fetchData(APIS.icon(uid)),
-                fetchData(APIS.passes(uid))
+            // STEP 1: Try to convert Place ID -> Universe ID
+            // We use apis.roproxy.com via the bridge
+            try {
+                const uniData = await fetchBridge(`https://apis.${DOMAIN}/universes/v1/places/${id}/universe`);
+                universeId = uniData.universeId;
+            } catch (e) {
+                console.log("Conversion failed, assuming ID is already Universe ID...");
+                universeId = id; // Fallback: User might have entered Universe ID directly
+            }
+
+            if (!universeId) throw new Error("Could not find Game Universe.");
+
+            // STEP 2: Get Game Details using Universe ID
+            // We use games.roproxy.com via the bridge
+            const [gameData, iconData] = await Promise.all([
+                fetchBridge(`https://games.${DOMAIN}/v1/games?universeIds=${universeId}`),
+                fetchBridge(`https://thumbnails.${DOMAIN}/universes/v1/icons?universeIds=${universeId}&size=150x150&format=Png&isCircular=false`)
             ]);
 
-            const d = game.data[0];
-            const currentPlayers = d.playing;
-            const passCount = passes.data.length; // Basic count of first page
+            const d = gameData.data[0];
             
-            // Ticker Logic
-            let activeClass = "";
-            if (currentPlayers > lastPlayerCount && lastPlayerCount !== 0) {
-                activeClass = "growth-up";
-            }
-            lastPlayerCount = currentPlayers;
+            if (!d) throw new Error("No data found for this ID.");
 
             // Render
-            cardContent.innerHTML = `
-                <div class="card header-card">
-                    <img src="${icon.data[0]?.imageUrl}">
-                    <div>
-                        <h2>${d.name}</h2>
-                        <div class="accent" style="font-weight:600; color:var(--accent);">ID: ${pid}</div>
-                    </div>
-                </div>
-                
-                <div class="card desc-box">${d.description || "No description."}</div>
-                
-                <div class="card">
-                    <div class="label">Live Players</div>
-                    <div class="value ${activeClass}" style="font-size: 2rem;">${smartFormat(currentPlayers)}</div>
-                </div>
-
-                <div class="card" style="display:flex; flex-direction:row; justify-content:space-between; align-items:center;">
-                   <div>
-                        <div class="label">Total Visits</div>
-                        <div class="value" style="font-size:1.2rem;">${smartFormat(d.visits)}</div>
-                   </div>
-                   <div style="text-align:right;">
-                        <div class="label">Game Passes</div>
-                        <div class="value" style="font-size:1.2rem;">${passCount}+</div>
-                   </div>
-                </div>
-            `;
+            document.getElementById('gName').innerText = d.name;
+            document.getElementById('gCreator').innerText = "By " + d.creator.name;
+            document.getElementById('gPlaying').innerText = smartFormat(d.playing);
+            document.getElementById('gVisits').innerText = smartFormat(d.visits);
+            document.getElementById('gUpdate').innerText = new Date(d.updated).toLocaleDateString();
             
-            grid.style.display = "flex";
-            status.innerText = "● Live via RoProxy";
-            status.style.color = "#00ffa2";
+            const iconUrl = iconData.data?.[0]?.imageUrl || "";
+            document.getElementById('gIcon').src = iconUrl;
+
+            status.innerText = "Connected via RoProxy.";
+            status.style.color = "var(--accent)";
+            results.style.display = 'flex';
 
         } catch (err) {
             console.error(err);
-            status.innerText = "Connection Failed: Check ID or Network.";
-            status.style.color = "#ff4d4d";
+            status.innerText = "Connection Failed. Verify ID or check network.";
+            status.style.color = "var(--error)";
         }
     }
-
-    function startMonitor() {
-        getGameData();
-        clearInterval(refreshInterval);
-        refreshInterval = setInterval(getGameData, 20000); // 20 seconds
-    }
 </script>
+
 </body>
 </html>
