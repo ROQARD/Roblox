@@ -2,7 +2,7 @@ export default {
   async fetch(request) {
     const url = new URL(request.url);
 
-    // ROUTE: API Fetcher (Backend logic)
+    // ROUTE: API Fetcher (Backend logic
     if (url.pathname === "/api/get-stats") {
       const placeId = url.searchParams.get("id");
       if (!placeId) return new Response("Missing ID", { status: 400 });
