@@ -1,0 +1,6 @@
+name = "rostats"
+main = "index.js"
+compatibility_date = "2024-03-01"
+
+[http]
+# This ensures the worker handles all incoming requests
