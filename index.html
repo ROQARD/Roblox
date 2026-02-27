@@ -3,17 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RoStats | Proxy Fixed</title>
+    <title>Experience Tracker</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
         
         :root {
-            --bg: #050505;
-            --glass: rgba(255, 255, 255, 0.05);
-            --border: rgba(255, 255, 255, 0.1);
+            --bg: #0a0a0a;
+            --glass: rgba(255, 255, 255, 0.03);
+            --border: rgba(255, 255, 255, 0.08);
             --accent: #00ff88;
             --text: #ffffff;
-            --text-dim: #888;
+            --text-dim: #999;
             --error: #ff4444;
         }
 
@@ -29,144 +29,173 @@
             min-height: 100vh;
         }
 
-        .container { width: 100%; max-width: 550px; }
+        .container { width: 100%; max-width: 600px; position: relative; }
 
         .search-box {
             background: var(--glass);
             border: 1px solid var(--border);
-            padding: 25px;
-            border-radius: 20px;
+            padding: 30px;
+            border-radius: 24px;
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 24px;
+            backdrop-filter: blur(10px);
         }
 
-        h1 { font-weight: 800; font-size: 2.2rem; margin-bottom: 15px; letter-spacing: -1px; }
+        h1 { font-weight: 800; font-size: 2.5rem; margin-bottom: 20px; letter-spacing: -1.5px; }
         
         .input-group {
             display: flex;
-            gap: 10px;
-            margin-top: 15px;
+            gap: 12px;
         }
 
         input {
             flex: 1;
-            background: rgba(0,0,0,0.3);
+            background: rgba(0,0,0,0.4);
             border: 1px solid var(--border);
             color: white;
-            padding: 12px;
-            border-radius: 10px;
+            padding: 14px 18px;
+            border-radius: 12px;
             font-size: 1rem;
             outline: none;
-            transition: 0.2s;
+            transition: 0.3s;
         }
-        input:focus { border-color: var(--accent); }
+        input:focus { border-color: var(--accent); box-shadow: 0 0 15px rgba(0,255,136,0.1); }
 
         button {
             background: var(--accent);
             color: #000;
             border: none;
-            padding: 0 25px;
-            border-radius: 10px;
-            font-weight: 700;
+            padding: 0 28px;
+            border-radius: 12px;
+            font-weight: 800;
             cursor: pointer;
             transition: 0.2s;
-        }
-        button:hover { filter: brightness(1.1); transform: translateY(-1px); }
-
-        #status {
-            margin-top: 15px;
+            text-transform: uppercase;
             font-size: 0.85rem;
-            font-weight: 600;
-            min-height: 20px;
         }
+        button:hover { filter: brightness(1.2); transform: translateY(-2px); }
 
-        /* Results */
+        #status { margin-top: 15px; font-size: 0.85rem; font-weight: 500; min-height: 20px; }
+
         .result-card {
             display: none;
             flex-direction: column;
             gap: 12px;
-            animation: fadeIn 0.4s ease-out;
+            animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
-        .stat-row {
+        .header-box {
+            background: var(--glass);
+            border: 1px solid var(--border);
+            padding: 20px;
+            border-radius: 20px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+        .header-box img { 
+            width: 100px; height: 100px; 
+            border-radius: 15px; 
+            object-fit: cover;
+            border: 1px solid var(--border);
+        }
+
+        .grid-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .stat-item {
             background: var(--glass);
             border: 1px solid var(--border);
             padding: 18px;
-            border-radius: 16px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            border-radius: 18px;
         }
 
-        .header {
-            display: flex;
-            gap: 15px;
-            align-items: center;
-            padding: 10px;
-            background: linear-gradient(90deg, rgba(0,255,136,0.1), transparent);
-            border-radius: 16px;
-            border: 1px solid var(--border);
-            margin-bottom: 5px;
+        .full-width { grid-column: span 2; }
+
+        .label { font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; font-weight: 700; letter-spacing: 1px; margin-bottom: 4px; }
+        .value { font-size: 1.4rem; font-weight: 800; }
+        .live-count { color: var(--accent); text-shadow: 0 0 10px rgba(0,255,136,0.3); }
+        .desc { font-size: 0.85rem; color: var(--text-dim); line-height: 1.5; margin-top: 10px; max-height: 100px; overflow-y: auto; }
+
+        .footer-credit {
+            position: fixed;
+            bottom: 20px;
+            right: 25px;
+            font-size: 0.75rem;
+            font-weight: 800;
+            color: var(--text-dim);
+            letter-spacing: 1px;
+            opacity: 0.6;
         }
-        .header img { width: 64px; height: 64px; border-radius: 12px; }
 
-        .label { font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; font-weight: 700; }
-        .value { font-size: 1.5rem; font-weight: 800; }
-        .live { color: var(--accent); }
-
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
 
 <div class="container">
     <div class="search-box">
-        <h1>Ro<span style="color:var(--accent)">Stats</span></h1>
-        <div style="color:var(--text-dim); font-size:0.9rem;">Powered by RoProxy + CORS Bridge</div>
-        
+        <h1>Tracker<span style="color:var(--accent)">.</span></h1>
         <div class="input-group">
-            <input type="text" id="placeId" placeholder="Enter Place ID (e.g. 920587237)">
-            <button onclick="init()">Connect</button>
+            <input type="text" id="placeId" placeholder="Enter Place ID...">
+            <button onclick="fetchStats()">Scan</button>
         </div>
         <div id="status"></div>
     </div>
 
     <div id="results" class="result-card">
-        <div class="header">
+        <div class="header-box">
             <img id="gIcon" src="">
             <div style="text-align:left;">
-                <div id="gName" style="font-weight:700; font-size:1.1rem;">Game Name</div>
-                <div id="gCreator" style="color:var(--accent); font-size:0.85rem;">Creator</div>
+                <div id="gName" style="font-weight:800; font-size:1.4rem; margin-bottom:4px;">Experience</div>
+                <div id="gCreator" style="color:var(--accent); font-size:0.9rem; font-weight:600;">By Creator</div>
+                <div id="gGenre" style="font-size:0.75rem; color:var(--text-dim); margin-top:5px;">Genre: Unknown</div>
             </div>
         </div>
 
-        <div class="stat-row">
-            <div>
+        <div class="grid-stats">
+            <div class="stat-item">
                 <div class="label">Playing Now</div>
-                <div class="value live" id="gPlaying">0</div>
+                <div class="value live-count" id="gPlaying">0</div>
             </div>
-            <div style="text-align:right;">
-                <div class="label">Visits</div>
-                <div class="value" id="gVisits" style="font-size:1.1rem;">0</div>
+            <div class="stat-item">
+                <div class="label">Total Visits</div>
+                <div class="value" id="gVisits">0</div>
             </div>
-        </div>
-
-        <div class="stat-row">
-            <div>
-                <div class="label">Last Update</div>
-                <div class="value" id="gUpdate" style="font-size:1rem;">-</div>
+            <div class="stat-item">
+                <div class="label">Favorites</div>
+                <div class="value" id="gFavs">0</div>
+            </div>
+            <div class="stat-item">
+                <div class="label">Likes</div>
+                <div class="value" id="gLikes">0</div>
+            </div>
+            <div class="stat-item">
+                <div class="label">Created</div>
+                <div class="value" id="gCreated" style="font-size:1rem;">-</div>
+            </div>
+            <div class="stat-item">
+                <div class="label">Last Updated</div>
+                <div class="value" id="gUpdated" style="font-size:1rem;">-</div>
+            </div>
+            <div class="stat-item full-width">
+                <div class="label">About</div>
+                <div class="desc" id="gDesc">No description available.</div>
             </div>
         </div>
     </div>
 </div>
 
-<script>
-    // 1. We use 'codetabs' to bypass the browser CORS block.
-    // 2. We request 'roproxy.com' inside that bridge.
-    const BRIDGE = "https://api.codetabs.com/v1/proxy?quest=";
-    const DOMAIN = "roproxy.com"; 
+<div class="footer-credit">BY ROQARD</div>
 
-    function smartFormat(n) {
+<script>
+    const BRIDGE = "https://api.codetabs.com/v1/proxy?quest=";
+    const DOMAIN = "roproxy.com";
+
+    function formatNum(n) {
         if (!n || isNaN(n)) return "0";
         if (n >= 1e9) return (n / 1e9).toFixed(2) + "B";
         if (n >= 1e6) return (n / 1e6).toFixed(1) + "M";
@@ -174,73 +203,63 @@
         return n.toLocaleString();
     }
 
-    async function fetchBridge(url) {
-        // Encode URL to prevent breaking the bridge query
-        const target = BRIDGE + encodeURIComponent(url);
-        const res = await fetch(target);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    async function request(url) {
+        const res = await fetch(BRIDGE + encodeURIComponent(url));
+        if (!res.ok) throw new Error();
         return res.json();
     }
 
-    async function init() {
+    async function fetchStats() {
         const input = document.getElementById('placeId').value.trim();
         const id = input.match(/\d+/)?.[0];
         const status = document.getElementById('status');
         const results = document.getElementById('results');
 
         if (!id) {
-            status.innerText = "Please enter a valid numeric ID.";
+            status.innerText = "Error: Invalid ID";
             status.style.color = "var(--error)";
             return;
         }
 
-        status.innerText = "Connecting to RoProxy Bridge...";
+        status.innerText = "Synchronizing...";
         status.style.color = "var(--text-dim)";
         results.style.display = 'none';
 
         try {
-            let universeId = null;
+            // Get Universe ID
+            const uniData = await request(`https://apis.${DOMAIN}/universes/v1/places/${id}/universe`);
+            const uId = uniData.universeId;
 
-            // STEP 1: Try to convert Place ID -> Universe ID
-            // We use apis.roproxy.com via the bridge
-            try {
-                const uniData = await fetchBridge(`https://apis.${DOMAIN}/universes/v1/places/${id}/universe`);
-                universeId = uniData.universeId;
-            } catch (e) {
-                console.log("Conversion failed, assuming ID is already Universe ID...");
-                universeId = id; // Fallback: User might have entered Universe ID directly
-            }
-
-            if (!universeId) throw new Error("Could not find Game Universe.");
-
-            // STEP 2: Get Game Details using Universe ID
-            // We use games.roproxy.com via the bridge
-            const [gameData, iconData] = await Promise.all([
-                fetchBridge(`https://games.${DOMAIN}/v1/games?universeIds=${universeId}`),
-                fetchBridge(`https://thumbnails.${DOMAIN}/universes/v1/icons?universeIds=${universeId}&size=150x150&format=Png&isCircular=false`)
+            // Fetch Multi-Data
+            const [gameData, iconData, voteData, favData] = await Promise.all([
+                request(`https://games.${DOMAIN}/v1/games?universeIds=${uId}`),
+                request(`https://thumbnails.${DOMAIN}/universes/v1/icons?universeIds=${uId}&size=150x150&format=Png`),
+                request(`https://games.${DOMAIN}/v1/games/votes?universeIds=${uId}`),
+                request(`https://games.${DOMAIN}/v1/games/${uId}/favorites/count`)
             ]);
 
             const d = gameData.data[0];
-            
-            if (!d) throw new Error("No data found for this ID.");
+            const v = voteData.data[0];
 
-            // Render
+            // Map UI
             document.getElementById('gName').innerText = d.name;
             document.getElementById('gCreator').innerText = "By " + d.creator.name;
-            document.getElementById('gPlaying').innerText = smartFormat(d.playing);
-            document.getElementById('gVisits').innerText = smartFormat(d.visits);
-            document.getElementById('gUpdate').innerText = new Date(d.updated).toLocaleDateString();
-            
-            const iconUrl = iconData.data?.[0]?.imageUrl || "";
-            document.getElementById('gIcon').src = iconUrl;
+            document.getElementById('gGenre').innerText = "Genre: " + (d.genre || "N/A");
+            document.getElementById('gDesc').innerText = d.description || "No description.";
+            document.getElementById('gPlaying').innerText = formatNum(d.playing);
+            document.getElementById('gVisits').innerText = formatNum(d.visits);
+            document.getElementById('gFavs').innerText = formatNum(favData.favoritesCount);
+            document.getElementById('gLikes').innerText = formatNum(v.upVotes);
+            document.getElementById('gCreated').innerText = new Date(d.created).toLocaleDateString();
+            document.getElementById('gUpdated').innerText = new Date(d.updated).toLocaleDateString();
+            document.getElementById('gIcon').src = iconData.data?.[0]?.imageUrl || "";
 
-            status.innerText = "Connected via RoProxy.";
+            status.innerText = "Data Secure.";
             status.style.color = "var(--accent)";
             results.style.display = 'flex';
 
         } catch (err) {
-            console.error(err);
-            status.innerText = "Connection Failed. Verify ID or check network.";
+            status.innerText = "Error: Protocol Failure";
             status.style.color = "var(--error)";
         }
     }
