@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Experience Tracker</title>
+    <title>RoStats</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
         
@@ -77,6 +77,47 @@
 
         #status { margin-top: 15px; font-size: 0.85rem; font-weight: 500; min-height: 20px; }
 
+        /* Recent Searches */
+        .recent-container {
+            margin-top: 20px;
+            text-align: left;
+            display: none; /* Hidden until there are recents */
+            animation: fadeIn 0.3s ease-in;
+        }
+        .recent-title {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            font-weight: 700;
+            margin-bottom: 10px;
+            letter-spacing: 1px;
+        }
+        .recent-list {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+        }
+        .recent-list::-webkit-scrollbar { height: 6px; }
+        .recent-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+        
+        .recent-item {
+            background: rgba(0,0,0,0.4);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 6px 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: 0.2s;
+            min-width: 140px;
+        }
+        .recent-item:hover { border-color: var(--accent); background: rgba(0, 255, 136, 0.05); }
+        .recent-item img { width: 28px; height: 28px; border-radius: 6px; object-fit: cover; }
+        .recent-item span { font-size: 0.8rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 90px; }
+
+        /* Results */
         .result-card {
             display: none;
             flex-direction: column;
@@ -114,7 +155,6 @@
         }
 
         .full-width { grid-column: span 2; }
-
         .label { font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; font-weight: 700; letter-spacing: 1px; margin-bottom: 4px; }
         .value { font-size: 1.4rem; font-weight: 800; }
         .live-count { color: var(--accent); text-shadow: 0 0 10px rgba(0,255,136,0.3); }
@@ -132,18 +172,24 @@
         }
 
         @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
 </head>
 <body>
 
 <div class="container">
     <div class="search-box">
-        <h1>Tracker<span style="color:var(--accent)">.</span></h1>
+        <h1>Ro<span style="color:var(--accent)">Stats</span>.</h1>
         <div class="input-group">
             <input type="text" id="placeId" placeholder="Enter Place ID...">
             <button onclick="fetchStats()">Scan</button>
         </div>
         <div id="status"></div>
+        
+        <div id="recentContainer" class="recent-container">
+            <div class="recent-title">Recent Searches</div>
+            <div id="recentList" class="recent-list"></div>
+        </div>
     </div>
 
     <div id="results" class="result-card">
@@ -194,6 +240,10 @@
 <script>
     const BRIDGE = "https://api.codetabs.com/v1/proxy?quest=";
     const DOMAIN = "roproxy.com";
+    const RECENT_KEY = "rostats_history";
+
+    // Initialize recent searches on page load
+    document.addEventListener("DOMContentLoaded", renderRecents);
 
     function formatNum(n) {
         if (!n || isNaN(n)) return "0";
@@ -205,10 +255,56 @@
 
     async function request(url) {
         const res = await fetch(BRIDGE + encodeURIComponent(url));
-        if (!res.ok) throw new Error();
+        if (!res.ok) throw new Error("HTTP_ERROR");
         return res.json();
     }
 
+    // Recent Searches Logic
+    function getRecents() {
+        return JSON.parse(localStorage.getItem(RECENT_KEY)) || [];
+    }
+
+    function saveRecent(id, name, icon) {
+        let recents = getRecents();
+        // Remove duplicate if exists
+        recents = recents.filter(item => item.id !== id);
+        // Add to front
+        recents.unshift({ id, name, icon });
+        // Keep only last 5
+        if (recents.length > 5) recents.pop();
+        localStorage.setItem(RECENT_KEY, JSON.stringify(recents));
+        renderRecents();
+    }
+
+    function renderRecents() {
+        const recents = getRecents();
+        const container = document.getElementById('recentContainer');
+        const list = document.getElementById('recentList');
+        
+        if (recents.length === 0) {
+            container.style.display = 'none';
+            return;
+        }
+
+        container.style.display = 'block';
+        list.innerHTML = '';
+
+        recents.forEach(game => {
+            const el = document.createElement('div');
+            el.className = 'recent-item';
+            el.onclick = () => {
+                document.getElementById('placeId').value = game.id;
+                fetchStats();
+            };
+            el.innerHTML = `
+                <img src="${game.icon}" onerror="this.src='https://tr.rbxcdn.com/default-icon.png'">
+                <span>${game.name}</span>
+            `;
+            list.appendChild(el);
+        });
+    }
+
+    // Main Fetch Logic
     async function fetchStats() {
         const input = document.getElementById('placeId').value.trim();
         const id = input.match(/\d+/)?.[0];
@@ -216,21 +312,30 @@
         const results = document.getElementById('results');
 
         if (!id) {
-            status.innerText = "Error: Invalid ID";
+            status.innerText = "Error: Invalid ID format";
             status.style.color = "var(--error)";
             return;
         }
 
-        status.innerText = "Synchronizing...";
+        status.innerText = "Synchronizing data...";
         status.style.color = "var(--text-dim)";
         results.style.display = 'none';
 
         try {
-            // Get Universe ID
-            const uniData = await request(`https://apis.${DOMAIN}/universes/v1/places/${id}/universe`);
-            const uId = uniData.universeId;
+            let uId = id;
+            
+            // Step 1: Try to convert Place ID to Universe ID
+            try {
+                const uniData = await request(`https://apis.${DOMAIN}/universes/v1/places/${id}/universe`);
+                if (uniData && uniData.universeId) {
+                    uId = uniData.universeId;
+                }
+            } catch(e) {
+                // If this fails, the user might have directly inputted a Universe ID.
+                // We silently catch this and proceed using the raw ID.
+            }
 
-            // Fetch Multi-Data
+            // Step 2: Fetch Multi-Data
             const [gameData, iconData, voteData, favData] = await Promise.all([
                 request(`https://games.${DOMAIN}/v1/games?universeIds=${uId}`),
                 request(`https://thumbnails.${DOMAIN}/universes/v1/icons?universeIds=${uId}&size=150x150&format=Png`),
@@ -238,8 +343,14 @@
                 request(`https://games.${DOMAIN}/v1/games/${uId}/favorites/count`)
             ]);
 
+            // Validate we actually found a game
+            if (!gameData || !gameData.data || gameData.data.length === 0) {
+                throw new Error("NOT_FOUND");
+            }
+
             const d = gameData.data[0];
-            const v = voteData.data[0];
+            const v = (voteData.data && voteData.data[0]) ? voteData.data[0] : { upVotes: 0 };
+            const iconUrl = iconData.data?.[0]?.imageUrl || "https://tr.rbxcdn.com/default-icon.png";
 
             // Map UI
             document.getElementById('gName').innerText = d.name;
@@ -252,14 +363,21 @@
             document.getElementById('gLikes').innerText = formatNum(v.upVotes);
             document.getElementById('gCreated').innerText = new Date(d.created).toLocaleDateString();
             document.getElementById('gUpdated').innerText = new Date(d.updated).toLocaleDateString();
-            document.getElementById('gIcon').src = iconData.data?.[0]?.imageUrl || "";
+            document.getElementById('gIcon').src = iconUrl;
+
+            // Save to recent searches
+            saveRecent(id, d.name, iconUrl);
 
             status.innerText = "Data Secure.";
             status.style.color = "var(--accent)";
             results.style.display = 'flex';
 
         } catch (err) {
-            status.innerText = "Error: Protocol Failure";
+            if (err.message === "NOT_FOUND") {
+                status.innerText = "Error: Game not found. Check the ID.";
+            } else {
+                status.innerText = "Error: Network synchronization failed.";
+            }
             status.style.color = "var(--error)";
         }
     }
