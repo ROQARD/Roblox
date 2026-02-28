@@ -3,19 +3,22 @@ export default {
     const url = new URL(request.url);
     const PROXY = "roproxy.com";
 
-    // --- GATEKEEPER: Handle API Routes ---
+    // --- API HANDLER (Always returns JSON) ---
     if (url.pathname.startsWith("/api/")) {
+      const headers = { 
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*" 
+      };
+
       try {
-        // API 1: Validate ID
         if (url.pathname === "/api/validate-id") {
           const placeId = url.searchParams.get("id");
           const res = await fetch(`https://apis.${PROXY}/universes/v1/places/${placeId}/universe`);
-          if (!res.ok) return new Response(JSON.stringify({ error: "Invalid Place ID" }), { status: 400, headers: { "Content-Type": "application/json" } });
+          if (!res.ok) return new Response(JSON.stringify({ error: "Invalid Place ID" }), { status: 400, headers });
           const data = await res.json();
-          return new Response(JSON.stringify({ universeId: data.universeId }), { headers: { "Content-Type": "application/json" } });
+          return new Response(JSON.stringify({ universeId: data.universeId }), { headers });
         }
 
-        // API 2: Get Stats
         if (url.pathname === "/api/get-stats") {
           const uId = url.searchParams.get("uid");
           const [gameRes, voteRes, favRes] = await Promise.all([
@@ -29,7 +32,7 @@ export default {
           const favData = await favRes.json();
 
           if (!gameData?.data?.[0]) {
-            return new Response(JSON.stringify({ error: "Game data is private or empty" }), { status: 404, headers: { "Content-Type": "application/json" } });
+            return new Response(JSON.stringify({ error: "Game data is empty/private" }), { status: 404, headers });
           }
 
           const payload = {
@@ -38,18 +41,17 @@ export default {
             favorites: favData?.favoritesCount || 0
           };
 
-          return new Response(JSON.stringify(payload), { headers: { "Content-Type": "application/json" } });
+          return new Response(JSON.stringify(payload), { headers });
         }
 
-        // If no API route matches but it starts with /api/
-        return new Response(JSON.stringify({ error: "Endpoint not found" }), { status: 404, headers: { "Content-Type": "application/json" } });
+        return new Response(JSON.stringify({ error: "API Endpoint Not Found" }), { status: 404, headers });
 
       } catch (err) {
-        return new Response(JSON.stringify({ error: "Server Error: " + err.message }), { status: 500, headers: { "Content-Type": "application/json" } });
+        return new Response(JSON.stringify({ error: "Proxy Connection Failed" }), { status: 500, headers });
       }
     }
 
-    // --- DEFAULT: Return HTML ---
+    // --- FRONTEND HANDLER ---
     return new Response(html, { headers: { "Content-Type": "text/html" } });
   }
 };
@@ -81,12 +83,14 @@ const html = `
         input { flex: 1; background: rgba(0,0,0,0.5); border: 1px solid var(--border); color: white; padding: 16px 20px; border-radius: 14px; font-size: 1rem; outline: none; }
         .scan-btn { background: var(--accent); color: #000; border: none; padding: 0 25px; border-radius: 14px; font-weight: 800; cursor: pointer; text-transform: uppercase; }
         #status { margin-top: 15px; font-size: 0.8rem; font-weight: 600; min-height: 20px; color: var(--text-dim); }
+        
         .recent-container { margin-top: 20px; text-align: left; display: none; }
         .recent-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
         .recent-title { font-size: 0.65rem; color: var(--text-dim); text-transform: uppercase; font-weight: 800; letter-spacing: 1px; }
         .clear-btn { font-size: 0.65rem; color: var(--error); cursor: pointer; background: none; border: none; font-weight: 800; }
         .recent-list { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 5px; }
         .recent-item { background: var(--glass); border: 1px solid var(--border); border-radius: 10px; padding: 8px 14px; cursor: pointer; white-space: nowrap; font-size: 0.75rem; font-weight: 600; }
+
         .result-card { display: none; flex-direction: column; gap: 10px; animation: slideUp 0.4s ease; }
         .header-box { background: var(--glass); border: 1px solid var(--border); padding: 25px; border-radius: 24px; text-align: center; }
         .grid-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
@@ -94,14 +98,29 @@ const html = `
         .full-width { grid-column: span 3; }
         .label { font-size: 0.6rem; color: var(--text-dim); text-transform: uppercase; font-weight: 800; margin-bottom: 4px; }
         .value { font-size: 1.2rem; font-weight: 800; }
+        
+        /* Expandable Description */
+        #gDesc { 
+            font-size: 0.8rem; 
+            color: var(--text-dim); 
+            line-height: 1.5; 
+            max-height: 60px; 
+            overflow: hidden; 
+            cursor: pointer; 
+            transition: max-height 0.3s ease;
+            position: relative;
+        }
+        #gDesc.expanded { max-height: 1000px; overflow-y: visible; }
+        .desc-hint { font-size: 0.6rem; color: var(--accent); margin-top: 4px; display: block; }
+
         .action-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 5px; }
         .btn-action { padding: 16px; border-radius: 16px; font-weight: 800; cursor: pointer; text-transform: uppercase; font-size: 0.75rem; border: 1px solid var(--border); transition: 0.2s; }
         .btn-copy { background: rgba(0, 255, 136, 0.05); color: var(--accent); border-color: var(--accent); }
         .btn-link { background: rgba(255, 255, 255, 0.05); color: #fff; text-decoration: none; display: flex; align-items: center; justify-content: center; }
-        .btn-action:hover { transform: translateY(-2px); filter: brightness(1.2); }
+        
         .footer-credit { position: fixed; bottom: 20px; right: 25px; font-size: 0.75rem; font-weight: 800; opacity: 0.6; letter-spacing: 2px; }
         .footer-credit a { color: var(--text-dim); text-decoration: none; }
-        .footer-credit a:hover { color: var(--accent); }
+
         @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
@@ -122,6 +141,7 @@ const html = `
             <div id="recentList" class="recent-list"></div>
         </div>
     </div>
+
     <div id="results" class="result-card">
         <div class="header-box">
             <div id="gName" style="font-weight:800; font-size:1.8rem; margin-bottom:5px;">-</div>
@@ -137,7 +157,11 @@ const html = `
             <div class="stat-item"><div class="label">Max Server</div><div id="gMax" class="value">0</div></div>
             <div class="stat-item"><div class="label">Created</div><div id="gCreated" class="value" style="font-size:0.8rem;">-</div></div>
             <div class="stat-item"><div class="label">Updated</div><div id="gUpdated" class="value" style="font-size:0.8rem;">-</div></div>
-            <div class="stat-item full-width"><div class="label">Description</div><div id="gDesc" style="font-size: 0.8rem; color: var(--text-dim); line-height: 1.4; max-height: 100px; overflow-y: auto;">-</div></div>
+            <div class="stat-item full-width" onclick="toggleDesc()">
+                <div class="label">Description</div>
+                <div id="gDesc">-</div>
+                <span class="desc-hint" id="descHint">Tap to expand</span>
+            </div>
         </div>
         <div class="action-group">
             <button class="btn-action btn-copy" onclick="copyData()">Copy Report</button>
@@ -145,13 +169,16 @@ const html = `
         </div>
     </div>
 </div>
+
 <div class="footer-credit">
     <a href="https://www.roblox.com/users/9461867215/profile" target="_blank">BY ROQARD</a>
 </div>
+
 <script>
-    const RECENT_KEY = "rostats_v8_stable";
+    const RECENT_KEY = "rostats_v9_stable";
     let currentData = null;
     let currentPlaceId = "";
+
     window.onload = renderRecents;
 
     function formatNum(n) {
@@ -168,17 +195,13 @@ const html = `
         const status = document.getElementById('status');
         const results = document.getElementById('results');
 
-        if (!id) {
-            status.innerText = "Error: ID Required.";
-            status.style.color = "var(--error)";
-            return;
-        }
-
+        if (!id) { status.innerText = "Error: ID Required."; status.style.color = "var(--error)"; return; }
+        
         currentPlaceId = id;
         results.style.display = 'none';
-        status.innerText = "Querying...";
+        status.innerText = "Accessing Hub...";
         status.style.color = "var(--text-dim)";
-
+        
         try {
             const valRes = await fetch("/api/validate-id?id=" + id);
             const valData = await valRes.json();
@@ -204,23 +227,34 @@ const html = `
             document.getElementById('gMax').innerText = data.game.maxPlayers || "N/A";
             document.getElementById('gCreated').innerText = new Date(data.game.created).toLocaleDateString();
             document.getElementById('gUpdated').innerText = new Date(data.game.updated).toLocaleDateString();
-            document.getElementById('gDesc').innerText = data.game.description || "No info.";
+            
+            const desc = document.getElementById('gDesc');
+            desc.innerText = data.game.description || "No description provided.";
+            desc.classList.remove('expanded');
+            document.getElementById('descHint').innerText = "Tap to expand";
+
             document.getElementById('gameLink').href = "https://www.roblox.com/games/" + id;
 
             saveRecent(id, data.game.name);
-            status.innerText = "Success.";
+            status.innerText = "Connected.";
             status.style.color = "var(--accent)";
             results.style.display = 'flex';
         } catch (e) {
             status.innerText = "Error: " + e.message;
             status.style.color = "var(--error)";
-            console.error(e);
         }
+    }
+
+    function toggleDesc() {
+        const desc = document.getElementById('gDesc');
+        const hint = document.getElementById('descHint');
+        desc.classList.toggle('expanded');
+        hint.innerText = desc.classList.contains('expanded') ? "Tap to collapse" : "Tap to expand";
     }
 
     function saveRecent(id, name) {
         let recents = JSON.parse(localStorage.getItem(RECENT_KEY)) || [];
-        recents = recents.filter(i => i.id !== id);
+        recents = recents.filter(i => String(i.id) !== String(id));
         recents.unshift({ id, name });
         localStorage.setItem(RECENT_KEY, JSON.stringify(recents.slice(0, 8)));
         renderRecents();
@@ -240,10 +274,10 @@ const html = `
 
     function copyData() {
         if (!currentData) return;
-        const report = "Experience: " + currentData.game.name + "\\n" +
+        const report = "Game: " + currentData.game.name + "\\n" +
                        "ID: " + currentPlaceId + "\\n" +
                        "Creator: " + currentData.game.creator.name + "\\n" +
-                       "Playing: " + currentData.game.playing + "\\n" +
+                       "Players: " + currentData.game.playing + "\\n" +
                        "Visits: " + currentData.game.visits;
         navigator.clipboard.writeText(report).then(() => alert("Report Copied."));
     }
