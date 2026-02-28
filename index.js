@@ -4,17 +4,21 @@ export default {
     const PROXIES = ["rotunnel.com", "roproxy.com", "rbxproxy.com"];
 
     if (url.pathname.startsWith("/api/")) {
-      const apiHeaders = { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" };
+      const apiHeaders = { 
+        "Content-Type": "application/json", 
+        "Access-Control-Allow-Origin": "*" 
+      };
+
       const tryFetch = async (subdomain, endpoint) => {
         for (let proxy of PROXIES) {
           try {
             const res = await fetch(`https://${subdomain}.${proxy}${endpoint}`, { 
-              headers: { "User-Agent": "RoStats_Intelligence_ROQARD" }
+              headers: { "User-Agent": "RoStats_Final_Fixed" }
             });
             if (res.ok) return await res.json();
           } catch (e) { continue; }
         }
-        throw new Error("Proxy Link Failed");
+        throw new Error("All Proxies Offline");
       };
 
       try {
@@ -30,7 +34,11 @@ export default {
             tryFetch('games', `/v1/games/votes?universeIds=${uId}`),
             tryFetch('games', `/v1/games/${uId}/favorites/count`)
           ]);
-          return new Response(JSON.stringify({ game: game.data[0], votes: votes.data[0], favorites: favs.favoritesCount }), { headers: apiHeaders });
+          return new Response(JSON.stringify({ 
+            game: game.data[0], 
+            votes: votes.data[0], 
+            favorites: favs.favoritesCount 
+          }), { headers: apiHeaders });
         }
       } catch (err) {
         return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: apiHeaders });
@@ -60,7 +68,7 @@ const html = `
         .scan-btn { background: var(--accent); color: #000; border: none; padding: 0 25px; border-radius: 10px; font-weight: 800; cursor: pointer; text-transform: uppercase; }
         
         .dashboard { display: none; flex-direction: column; gap: 12px; animation: slideUp 0.4s ease; }
-        .box { background: var(--card); border: 1px solid var(--border); padding: 20px; border-radius: 16px; text-align: center; position: relative; }
+        .box { background: var(--card); border: 1px solid var(--border); padding: 20px; border-radius: 16px; text-align: center; }
         .label { font-size: 0.6rem; color: var(--dim); text-transform: uppercase; font-weight: 800; margin-bottom: 4px; }
         .val { font-size: 1.2rem; font-weight: 800; }
         
@@ -70,7 +78,6 @@ const html = `
         .tag-neutral { background: rgba(255, 255, 255, 0.1); color: var(--dim); }
 
         .info-card { background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); padding: 20px; border-radius: 20px; }
-        .briefing-title { font-size: 0.7rem; font-weight: 800; color: var(--dim); text-transform: uppercase; margin-bottom: 10px; display: flex; align-items: center; gap: 5px; }
         .briefing-text { font-size: 0.85rem; color: #d4d4d8; line-height: 1.5; }
 
         .content-card { background: var(--card); border: 1px solid var(--border); padding: 25px; border-radius: 20px; }
@@ -78,9 +85,8 @@ const html = `
         
         .play-btn { background: #fff; color: #000; text-decoration: none; text-align: center; padding: 18px; border-radius: 18px; font-weight: 800; text-transform: uppercase; margin-top: 5px; display: block; }
         
-        /* Minimalist Credit Button */
         .footer { position: fixed; bottom: 20px; right: 25px; z-index: 9999; }
-        .footer-link { color: var(--dim); text-decoration: none; font-size: 0.7rem; font-weight: 800; letter-spacing: 2px; background: transparent; border: none; padding: 10px; display: block; opacity: 0.6; }
+        .footer-link { color: var(--dim); text-decoration: none; font-size: 0.7rem; font-weight: 800; letter-spacing: 2px; opacity: 0.5; }
         .footer-link:hover { opacity: 1; color: #fff; }
 
         @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
@@ -91,8 +97,8 @@ const html = `
         <div class="search-area">
             <h1 style="font-size: 2.2rem; margin-bottom:20px;">Ro<span style="color:var(--accent)">Stats</span></h1>
             <div class="input-box">
-                <input type="text" id="placeId" placeholder="Paste Place ID here...">
-                <button class="scan-btn" onclick="run()">Analyze</button>
+                <input type="text" id="placeId" placeholder="Enter Place ID...">
+                <button class="scan-btn" onclick="run()">Scan</button>
             </div>
             <div id="status" style="margin-top:10px; font-size:0.7rem; color:var(--dim);">Ready</div>
         </div>
@@ -104,8 +110,7 @@ const html = `
             </div>
 
             <div class="info-card">
-                <div class="briefing-title">Intelligence Briefing</div>
-                <div id="briefing" class="briefing-text">Crunching numbers...</div>
+                <div id="briefing" class="briefing-text">Analyzing...</div>
             </div>
 
             <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
@@ -155,18 +160,16 @@ const html = `
 
         async function update() {
             const idInput = document.getElementById('placeId').value;
-            const id = idInput.match(/\\d+/)?.[0];
+            const id = idInput.match(/\\\\d+/)?.[0];
             if(!id) return;
 
             try {
                 const v = await fetch("/api/validate-id?id=" + id).then(r => r.json());
                 const d = await fetch("/api/get-stats?uid=" + v.universeId).then(r => r.json());
                 const g = d.game;
-
                 const up = d.votes.upVotes || 0;
                 const down = d.votes.downVotes || 0;
                 const rate = (up + down) > 0 ? Math.round((up / (up + down)) * 100) : 0;
-                const fRatio = ((d.favorites / g.visits) * 1000).toFixed(1);
 
                 document.getElementById('gTitle').innerText = g.name;
                 document.getElementById('gOwner').innerText = "By " + g.creator.name;
@@ -184,18 +187,13 @@ const html = `
                 document.getElementById('gDesc').innerText = g.description || "No description.";
                 document.getElementById('robloxLink').href = "https://www.roblox.com/games/" + id;
 
-                // Simple Explainer Briefing
                 let brief = "This game has a ";
                 if(rate >= 80) brief += "<b>very positive</b> reputation. ";
-                else if(rate < 60) brief += "<b>mixed</b> reputation, meaning some players find issues. ";
+                else if(rate < 60) brief += "<b>mixed</b> reputation. ";
                 else brief += "<b>stable</b> reputation. ";
-
-                if(g.playing > 5000) brief += "Current traffic is <b>high</b>, showing strong community interest.";
-                else brief += "Current traffic is <b>moderate</b> for this size of experience.";
-
+                brief += g.playing > 5000 ? "Traffic is <b>high</b>." : "Traffic is <b>moderate</b>.";
                 document.getElementById('briefing').innerHTML = brief;
 
-                // Tag Logic
                 if(g.playing > 20000) setTag('tPlay', 'Viral', 'good');
                 else if(g.playing < 20 && g.visits > 10000) setTag('tPlay', 'Inactive', 'bad');
                 else setTag('tPlay', 'Stable', 'neutral');
@@ -208,11 +206,12 @@ const html = `
                 else setTag('tDis', 'Clean Record', 'good');
 
                 document.getElementById('results').style.display = 'flex';
-                document.getElementById('status').innerText = "Live tracking active";
+                document.getElementById('status').innerText = "Live";
             } catch (e) {
-                document.getElementById('status').innerText = "Error: Proxy Busy";
+                document.getElementById('status').innerText = "Proxy Busy";
             }
         }
     </script>
 </body>
 </html>
+`;
