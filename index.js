@@ -3,66 +3,65 @@ export default {
     const url = new URL(request.url);
     const PROXY = "roproxy.com";
 
-    // --- API ROUTE 1: Validate Place ID and get Universe ID ---
+    // --- API 1: Validate Place ID ---
     if (url.pathname === "/api/validate-id") {
       const placeId = url.searchParams.get("id");
-      if (!placeId) return new Response(JSON.stringify({ error: "No ID provided" }), { status: 400 });
-
       try {
-        const uniRes = await fetch(`https://apis.${PROXY}/universes/v1/places/${placeId}/universe`);
-        if (!uniRes.ok) throw new Error("Invalid Place ID");
-        
-        const uniData = await uniRes.json();
-        if (!uniData.universeId) throw new Error("Universe ID not found");
-
-        return new Response(JSON.stringify({ universeId: uniData.universeId }), {
-          headers: { "Content-Type": "application/json" }
-        });
+        const res = await fetch(`https://apis.${PROXY}/universes/v1/places/${placeId}/universe`);
+        if (!res.ok) throw new Error("Invalid Place ID");
+        const data = await res.json();
+        if (!data.universeId) throw new Error("No Universe ID returned");
+        return new Response(JSON.stringify({ universeId: data.universeId }), { headers: { "Content-Type": "application/json" } });
       } catch (err) {
-        return new Response(JSON.stringify({ error: "Invalid Place ID or System Offline" }), { status: 404 });
+        return new Response(JSON.stringify({ error: err.message }), { status: 400 });
       }
     }
 
-    // --- API ROUTE 2: Fetch all heavy stats using Universe ID ---
+    // --- API 2: Fetch Stats (Crash-Proof) ---
     if (url.pathname === "/api/get-stats") {
       const uId = url.searchParams.get("uid");
-      if (!uId) return new Response(JSON.stringify({ error: "No Universe ID provided" }), { status: 400 });
-
       try {
-        const [gameRes, voteRes, favRes, iconRes] = await Promise.all([
-          fetch(`https://games.${PROXY}/v1/games?universeIds=${uId}`),
-          fetch(`https://games.${PROXY}/v1/games/votes?universeIds=${uId}`),
-          fetch(`https://games.${PROXY}/v1/games/${uId}/favorites/count`),
-          fetch(`https://thumbnails.${PROXY}/v1/universes/icons?universeIds=${uId}&size=150x150&format=Png&isCircular=false`)
-        ]);
+        // Fetching individually so one blocked endpoint doesn't break the whole app
+        const gameReq = fetch(`https://games.${PROXY}/v1/games?universeIds=${uId}`).then(r => r.ok ? r.json() : null).catch(()=>null);
+        const voteReq = fetch(`https://games.${PROXY}/v1/games/votes?universeIds=${uId}`).then(r => r.ok ? r.json() : null).catch(()=>null);
+        const favReq = fetch(`https://games.${PROXY}/v1/games/${uId}/favorites/count`).then(r => r.ok ? r.json() : null).catch(()=>null);
+        const iconReq = fetch(`https://thumbnails.${PROXY}/v1/universes/icons?universeIds=${uId}&size=150x150&format=Png&isCircular=false`).then(r => r.ok ? r.json() : null).catch(()=>null);
 
-        const gameData = await gameRes.json();
-        const voteData = await voteRes.json();
-        const favData = await favRes.json();
-        const iconData = await iconRes.json();
+        const [gameData, voteData, favData, iconData] = await Promise.all([gameReq, voteReq, favReq, iconReq]);
 
-        if (!gameData.data || gameData.data.length === 0) throw new Error("Unable to load stats");
+        if (!gameData || !gameData.data || gameData.data.length === 0) {
+            throw new Error("ID exists, but game data is empty or hidden.");
+        }
 
         const payload = {
           game: gameData.data[0],
-          votes: voteData.data[0] || { upVotes: 0 },
-          favorites: favData.favoritesCount || 0,
-          icon: iconData.data?.[0]?.imageUrl || "https://tr.rbxcdn.com/default-icon.png"
+          votes: (voteData && voteData.data) ? voteData.data[0] : { upVotes: 0 },
+          favorites: favData ? favData.favoritesCount : 0,
+          icon: (iconData && iconData.data) ? iconData.data[0].imageUrl : ""
         };
 
-        return new Response(JSON.stringify(payload), {
-          headers: { "Content-Type": "application/json" }
-        });
-
+        return new Response(JSON.stringify(payload), { headers: { "Content-Type": "application/json" } });
       } catch (err) {
-        return new Response(JSON.stringify({ error: "Unable to load experience data." }), { status: 500 });
+        return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+      }
+    }
+
+    // --- API 3: IMAGE PROXY (Bypasses Device Blocks!) ---
+    if (url.pathname === "/api/image") {
+      const target = url.searchParams.get("url");
+      if (!target) return new Response("No URL", { status: 400 });
+      try {
+        const imgRes = await fetch(target);
+        const headers = new Headers(imgRes.headers);
+        headers.set("Access-Control-Allow-Origin", "*"); // Let our frontend read it
+        return new Response(imgRes.body, { headers });
+      } catch (e) {
+        return new Response("Image load failed", { status: 500 });
       }
     }
 
     // --- FRONTEND ROUTE ---
-    return new Response(html, {
-      headers: { "Content-Type": "text/html" }
-    });
+    return new Response(html, { headers: { "Content-Type": "text/html" } });
   }
 };
 
@@ -97,7 +96,6 @@ const html = `
             min-height: 100vh;
         }
         .container { width: 100%; max-width: 600px; }
-        
         .search-box {
             background: var(--glass);
             border: 1px solid var(--border);
@@ -106,10 +104,8 @@ const html = `
             text-align: center;
             margin-bottom: 24px;
             backdrop-filter: blur(15px);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
         h1 { font-weight: 800; font-size: 2.5rem; margin-bottom: 20px; letter-spacing: -1.5px; }
-        
         .input-group { display: flex; gap: 12px; }
         input {
             flex: 1;
@@ -120,9 +116,8 @@ const html = `
             border-radius: 12px;
             font-size: 1rem;
             outline: none;
-            transition: 0.3s;
         }
-        input:focus { border-color: var(--accent); box-shadow: 0 0 15px var(--accent-dim); }
+        input:focus { border-color: var(--accent); }
         button {
             background: var(--accent);
             color: #000;
@@ -132,19 +127,11 @@ const html = `
             font-weight: 800;
             cursor: pointer;
             text-transform: uppercase;
-            transition: 0.2s;
         }
-        button:hover { transform: translateY(-2px); filter: brightness(1.1); box-shadow: 0 5px 15px var(--accent-dim); }
-        button:disabled { background: #444; color: #888; cursor: not-allowed; transform: none; box-shadow: none; }
-        
-        #status { margin-top: 15px; font-size: 0.85rem; font-weight: 600; min-height: 20px; transition: 0.3s; }
-        
+        #status { margin-top: 15px; font-size: 0.85rem; font-weight: 600; min-height: 20px; }
         .recent-container { margin-top: 20px; text-align: left; display: none; }
-        .recent-title { font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; margin-bottom: 10px; font-weight: 800; letter-spacing: 1px; }
+        .recent-title { font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; margin-bottom: 10px; font-weight: 800; }
         .recent-list { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 8px; }
-        .recent-list::-webkit-scrollbar { height: 6px; }
-        .recent-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
-        
         .recent-item {
             background: var(--glass);
             border: 1px solid var(--border);
@@ -155,14 +142,10 @@ const html = `
             gap: 10px;
             cursor: pointer;
             min-width: 150px;
-            transition: 0.2s;
         }
-        .recent-item:hover { border-color: var(--accent); background: rgba(0, 255, 136, 0.05); }
         .recent-item img { width: 30px; height: 30px; border-radius: 6px; object-fit: cover; }
         .recent-item span { font-size: 0.8rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100px; }
-        
         .result-card { display: none; flex-direction: column; gap: 12px; animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
-        
         .header-box {
             background: var(--glass);
             border: 1px solid var(--border);
@@ -172,18 +155,14 @@ const html = `
             gap: 20px;
             align-items: center;
         }
-        .header-box img { width: 100px; height: 100px; border-radius: 16px; object-fit: cover; border: 1px solid var(--border); }
-        
+        .header-box img { width: 100px; height: 100px; border-radius: 16px; object-fit: cover; border: 1px solid var(--border); background: #111; }
         .grid-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         .stat-item { background: var(--glass); border: 1px solid var(--border); padding: 18px; border-radius: 18px; }
         .full-width { grid-column: span 2; }
-        
         .label { font-size: 0.65rem; color: var(--text-dim); text-transform: uppercase; font-weight: 800; margin-bottom: 6px; letter-spacing: 1px; }
         .value { font-size: 1.4rem; font-weight: 800; }
         .value-small { font-size: 1rem; font-weight: 600; color: #ccc; }
-        
-        .footer-credit { position: fixed; bottom: 20px; right: 25px; font-size: 0.75rem; font-weight: 800; color: var(--text-dim); opacity: 0.6; letter-spacing: 2px; }
-        
+        .footer-credit { position: fixed; bottom: 20px; right: 25px; font-size: 0.75rem; font-weight: 800; color: var(--text-dim); opacity: 0.6; }
         @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
@@ -215,7 +194,7 @@ const html = `
         <div class="grid-stats">
             <div class="stat-item">
                 <div class="label">Playing Now</div>
-                <div id="gPlaying" class="value" style="color:var(--accent); text-shadow: 0 0 10px var(--accent-dim);">0</div>
+                <div id="gPlaying" class="value" style="color:var(--accent);">0</div>
             </div>
             <div class="stat-item">
                 <div class="label">Total Visits</div>
@@ -239,7 +218,7 @@ const html = `
             </div>
             <div class="stat-item full-width">
                 <div class="label">Experience Description</div>
-                <div id="gDesc" style="font-size: 0.85rem; color: var(--text-dim); line-height: 1.5; max-height: 100px; overflow-y: auto; padding-right: 5px;">-</div>
+                <div id="gDesc" style="font-size: 0.85rem; color: var(--text-dim); line-height: 1.5; max-height: 100px; overflow-y: auto;">-</div>
             </div>
         </div>
     </div>
@@ -271,7 +250,6 @@ const html = `
         
         const status = document.getElementById('status');
         const results = document.getElementById('results');
-        const btn = document.getElementById('scanBtn');
 
         if (!id) {
             status.innerText = "Error: Please enter a valid numerical Place ID.";
@@ -279,32 +257,28 @@ const html = `
             return;
         }
 
-        // Reset UI
         results.style.display = 'none';
-        btn.disabled = true;
         
         try {
-            // STEP 1: Verify Place ID
+            // STEP 1
             status.innerText = "Validating Place ID...";
             status.style.color = "var(--text-dim)";
             
             const valRes = await fetch("/api/validate-id?id=" + id);
             const valData = await valRes.json();
-            
             if (valData.error) throw new Error(valData.error);
             const uId = valData.universeId;
 
-            // STEP 2: Load heavy stats
-            status.innerText = "ID Valid. Extracting Experience Data...";
+            // STEP 2
+            status.innerText = "Extracting Experience Data...";
             
             const statRes = await fetch("/api/get-stats?uid=" + uId);
             const statData = await statRes.json();
-            
             if (statData.error) throw new Error(statData.error);
 
-            // Populate UI
-            document.getElementById('gName').innerText = statData.game.name;
-            document.getElementById('gCreator').innerText = "By " + statData.game.creator.name;
+            // Populate Text
+            document.getElementById('gName').innerText = statData.game.name || "Unknown";
+            document.getElementById('gCreator').innerText = "By " + (statData.game.creator ? statData.game.creator.name : "Unknown");
             document.getElementById('gPlaying').innerText = formatNum(statData.game.playing);
             document.getElementById('gVisits').innerText = formatNum(statData.game.visits);
             document.getElementById('gFavs').innerText = formatNum(statData.favorites);
@@ -313,13 +287,14 @@ const html = `
             document.getElementById('gUpdated').innerText = formatDate(statData.game.updated);
             document.getElementById('gDesc').innerText = statData.game.description || "No description provided.";
             
-            // Handle Thumbnail
-            const iconEl = document.getElementById('gIcon');
-            iconEl.src = statData.icon;
-            iconEl.onerror = () => { iconEl.src = "https://tr.rbxcdn.com/default-icon.png"; };
+            // Proxy the Image so it bypasses device blocks
+            let finalIconUrl = "";
+            if (statData.icon) {
+                finalIconUrl = "/api/image?url=" + encodeURIComponent(statData.icon);
+                document.getElementById('gIcon').src = finalIconUrl;
+            }
 
-            // Save and render recents
-            saveRecent(id, statData.game.name, statData.icon);
+            saveRecent(id, statData.game.name, finalIconUrl);
 
             status.innerText = "Data Secure.";
             status.style.color = "var(--accent)";
@@ -328,8 +303,6 @@ const html = `
         } catch (e) {
             status.innerText = "Error: " + e.message;
             status.style.color = "var(--error)";
-        } finally {
-            btn.disabled = false;
         }
     }
 
@@ -354,7 +327,7 @@ const html = `
         container.style.display = 'block';
         list.innerHTML = recents.map(g => 
             \`<div class="recent-item" onclick="setAndFetch('\${g.id}')">
-                <img src="\${g.icon}" onerror="this.src='https://tr.rbxcdn.com/default-icon.png'">
+                <img src="\${g.icon || ''}">
                 <span>\${g.name}</span>
             </div>\`
         ).join('');
