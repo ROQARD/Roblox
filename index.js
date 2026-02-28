@@ -71,7 +71,6 @@ const html = `
         h1 { font-weight: 800; font-size: 2.2rem; margin-bottom: 20px; letter-spacing: -1px; }
         .input-group { display: flex; gap: 10px; }
         input { flex: 1; background: rgba(0,0,0,0.5); border: 1px solid var(--border); color: white; padding: 16px 20px; border-radius: 14px; font-size: 1rem; outline: none; }
-        input:focus { border-color: var(--accent); }
         .scan-btn { background: var(--accent); color: #000; border: none; padding: 0 25px; border-radius: 14px; font-weight: 800; cursor: pointer; text-transform: uppercase; }
         #status { margin-top: 15px; font-size: 0.8rem; font-weight: 600; min-height: 20px; color: var(--text-dim); }
         
@@ -81,17 +80,24 @@ const html = `
         .clear-btn { font-size: 0.65rem; color: var(--error); cursor: pointer; background: none; border: none; font-weight: 800; }
         .recent-list { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 5px; }
         .recent-item { background: var(--glass); border: 1px solid var(--border); border-radius: 10px; padding: 8px 14px; cursor: pointer; white-space: nowrap; font-size: 0.75rem; font-weight: 600; transition: 0.2s; }
-        .recent-item:hover { border-color: var(--accent); color: var(--accent); }
 
-        .result-card { display: none; flex-direction: column; gap: 10px; animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+        .result-card { display: none; flex-direction: column; gap: 10px; animation: slideUp 0.4s ease; }
         .header-box { background: var(--glass); border: 1px solid var(--border); padding: 25px; border-radius: 24px; text-align: center; }
         .grid-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
         .stat-item { background: var(--glass); border: 1px solid var(--border); padding: 15px; border-radius: 16px; text-align: center; }
         .full-width { grid-column: span 3; }
-        .label { font-size: 0.6rem; color: var(--text-dim); text-transform: uppercase; font-weight: 800; margin-bottom: 4px; letter-spacing: 0.5px; }
+        .label { font-size: 0.6rem; color: var(--text-dim); text-transform: uppercase; font-weight: 800; margin-bottom: 4px; }
         .value { font-size: 1.2rem; font-weight: 800; }
-        .copy-btn { width: 100%; padding: 16px; border-radius: 16px; border: 1px solid var(--accent); background: rgba(0, 255, 136, 0.05); color: var(--accent); font-weight: 800; cursor: pointer; text-transform: uppercase; margin-top: 5px; transition: 0.2s; }
-        .copy-btn:hover { background: var(--accent); color: #000; }
+        
+        .action-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 5px; }
+        .btn-action { padding: 16px; border-radius: 16px; font-weight: 800; cursor: pointer; text-transform: uppercase; font-size: 0.75rem; transition: 0.2s; border: 1px solid var(--border); }
+        .btn-copy { background: rgba(0, 255, 136, 0.05); color: var(--accent); border-color: var(--accent); }
+        .btn-link { background: rgba(255, 255, 255, 0.05); color: #fff; text-decoration: none; display: flex; align-items: center; justify-content: center; }
+        .btn-action:hover { transform: translateY(-2px); filter: brightness(1.2); }
+
+        .footer-credit { position: fixed; bottom: 20px; right: 25px; font-size: 0.75rem; font-weight: 800; opacity: 0.6; letter-spacing: 2px; }
+        .footer-credit a { color: var(--text-dim); text-decoration: none; transition: 0.2s; }
+        .footer-credit a:hover { color: var(--accent); }
 
         @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
     </style>
@@ -123,24 +129,30 @@ const html = `
             <div class="stat-item"><div class="label">Playing</div><div id="gPlaying" class="value" style="color:var(--accent);">0</div></div>
             <div class="stat-item"><div class="label">Visits</div><div id="gVisits" class="value">0</div></div>
             <div class="stat-item"><div class="label">Rating</div><div id="gRating" class="value" style="color:#fbff00;">0%</div></div>
-            
             <div class="stat-item"><div class="label">Favorites</div><div id="gFavs" class="value">0</div></div>
             <div class="stat-item"><div class="label">Likes</div><div id="gLikes" class="value">0</div></div>
             <div class="stat-item"><div class="label">Dislikes</div><div id="gDislikes" class="value">0</div></div>
-
             <div class="stat-item"><div class="label">Max Server</div><div id="gMax" class="value">0</div></div>
             <div class="stat-item"><div class="label">Created</div><div id="gCreated" class="value" style="font-size:0.8rem;">-</div></div>
             <div class="stat-item"><div class="label">Updated</div><div id="gUpdated" class="value" style="font-size:0.8rem;">-</div></div>
-
             <div class="stat-item full-width"><div class="label">Description</div><div id="gDesc" style="font-size: 0.8rem; color: var(--text-dim); line-height: 1.4; max-height: 100px; overflow-y: auto;">-</div></div>
         </div>
-        <button class="copy-btn" onclick="copyData()">Copy Report to Clipboard</button>
+        
+        <div class="action-group">
+            <button class="btn-action btn-copy" onclick="copyData()">Copy Report</button>
+            <a id="gameLink" href="#" target="_blank" class="btn-action btn-link">Visit Game</a>
+        </div>
     </div>
 </div>
 
+<div class="footer-credit">
+    <a href="https://www.roblox.com/users/9461867215/profile" target="_blank">BY ROQARD</a>
+</div>
+
 <script>
-    const RECENT_KEY = "rostats_v5_ultra";
+    const RECENT_KEY = "rostats_v6_final";
     let currentData = null;
+    let currentPlaceId = "";
 
     window.onload = renderRecents;
 
@@ -159,9 +171,10 @@ const html = `
         const results = document.getElementById('results');
 
         if (!id) { status.innerText = "Error: ID Required."; status.style.color = "var(--error)"; return; }
-
+        
+        currentPlaceId = id;
         results.style.display = 'none';
-        status.innerText = "Querying Database...";
+        status.innerText = "Decrypting Experience...";
         status.style.color = "var(--text-dim)";
         
         try {
@@ -189,10 +202,13 @@ const html = `
             document.getElementById('gMax').innerText = data.game.maxPlayers || "N/A";
             document.getElementById('gCreated').innerText = new Date(data.game.created).toLocaleDateString();
             document.getElementById('gUpdated').innerText = new Date(data.game.updated).toLocaleDateString();
-            document.getElementById('gDesc').innerText = data.game.description || "Empty.";
+            document.getElementById('gDesc').innerText = data.game.description || "No info.";
+
+            // Update Game Link Button
+            document.getElementById('gameLink').href = "https://www.roblox.com/games/" + id;
 
             saveRecent(id, data.game.name);
-            status.innerText = "Data Extracted Successfully.";
+            status.innerText = "Data Secure.";
             status.style.color = "var(--accent)";
             results.style.display = 'flex';
         } catch (e) {
@@ -219,15 +235,12 @@ const html = `
     }
 
     function clearHistory() { localStorage.removeItem(RECENT_KEY); renderRecents(); }
-
     function setAndFetch(id) { document.getElementById('placeId').value = id; fetchStats(); }
 
     function copyData() {
         if (!currentData) return;
-        const text = \`Experience: \${currentData.game.name}\\nCreator: \${currentData.game.creator.name}\\nPlaying: \${currentData.game.playing}\\nVisits: \${currentData.game.visits}\\nLikes/Dislikes: \${currentData.votes.upVotes}/\${currentData.votes.downVotes}\\nFavorites: \${currentData.favorites}\\nMax Players: \${currentData.game.maxPlayers}\\nUpdated: \${new Date(currentData.game.updated).toLocaleDateString()}\`;
-        navigator.clipboard.writeText(text).then(() => {
-            alert("Report copied to clipboard!");
-        });
+        const text = \`Name: \${currentData.game.name}\\nID: \${currentPlaceId}\\nCreator: \${currentData.game.creator.name}\\nPlaying: \${currentData.game.playing}\\nVisits: \${currentData.game.visits}\\nRating: \${document.getElementById('gRating').innerText}\`;
+        navigator.clipboard.writeText(text).then(() => alert("Report Copied."));
     }
 </script>
 </body>
