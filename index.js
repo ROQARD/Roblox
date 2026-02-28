@@ -13,7 +13,7 @@ export default {
         for (let proxy of PROXIES) {
           try {
             const res = await fetch(`https://${subdomain}.${proxy}${endpoint}`, { 
-              headers: { "User-Agent": "RoStats_Final_Fixed" }
+              headers: { "User-Agent": "RoStats_Pure_ROQARD" }
             });
             if (res.ok) return await res.json();
           } catch (e) { continue; }
@@ -65,28 +65,25 @@ const html = `
         .search-area { background: var(--card); border: 1px solid var(--border); padding: 30px; border-radius: 24px; text-align: center; margin-bottom: 15px; }
         .input-box { display: flex; gap: 10px; background: #000; padding: 6px; border-radius: 14px; border: 1px solid var(--border); }
         input { flex: 1; background: transparent; border: none; color: white; padding: 10px 15px; font-size: 1rem; outline: none; }
-        .scan-btn { background: var(--accent); color: #000; border: none; padding: 0 25px; border-radius: 10px; font-weight: 800; cursor: pointer; text-transform: uppercase; }
+        .scan-btn { background: var(--accent); color: #000; border: none; padding: 0 25px; border-radius: 10px; font-weight: 800; cursor: pointer; text-transform: uppercase; font-size: 0.8rem; }
         
         .dashboard { display: none; flex-direction: column; gap: 12px; animation: slideUp 0.4s ease; }
-        .box { background: var(--card); border: 1px solid var(--border); padding: 20px; border-radius: 16px; text-align: center; }
-        .label { font-size: 0.6rem; color: var(--dim); text-transform: uppercase; font-weight: 800; margin-bottom: 4px; }
-        .val { font-size: 1.2rem; font-weight: 800; }
-        
-        .tag { font-size: 0.55rem; font-weight: 900; padding: 2px 6px; border-radius: 4px; margin-top: 5px; display: inline-block; }
-        .tag-good { background: rgba(74, 222, 128, 0.2); color: var(--accent); }
-        .tag-bad { background: rgba(255, 68, 68, 0.2); color: var(--warn); }
-        .tag-neutral { background: rgba(255, 255, 255, 0.1); color: var(--dim); }
-
-        .info-card { background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); padding: 20px; border-radius: 20px; }
-        .briefing-text { font-size: 0.85rem; color: #d4d4d8; line-height: 1.5; }
+        .box { background: var(--card); border: 1px solid var(--border); padding: 25px; border-radius: 16px; text-align: center; }
+        .label { font-size: 0.65rem; color: var(--dim); text-transform: uppercase; font-weight: 800; margin-bottom: 6px; letter-spacing: 0.5px; }
+        .val { font-size: 1.4rem; font-weight: 800; }
 
         .content-card { background: var(--card); border: 1px solid var(--border); padding: 25px; border-radius: 20px; }
-        .full-desc { font-size: 0.9rem; color: #a1a1aa; line-height: 1.7; white-space: pre-wrap; margin-top: 15px; border-top: 1px solid var(--border); padding-top: 15px; }
+        .date-row { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--dim); border-bottom: 1px solid var(--border); padding-bottom: 15px; margin-bottom: 15px; }
+        .full-desc { font-size: 0.9rem; color: #a1a1aa; line-height: 1.7; white-space: pre-wrap; }
         
-        .play-btn { background: #fff; color: #000; text-decoration: none; text-align: center; padding: 18px; border-radius: 18px; font-weight: 800; text-transform: uppercase; margin-top: 5px; display: block; }
-        
+        .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 5px; }
+        .btn { text-decoration: none; text-align: center; padding: 18px; border-radius: 18px; font-weight: 800; text-transform: uppercase; font-size: 0.85rem; cursor: pointer; border: none; transition: 0.2s; }
+        .play-btn { background: #fff; color: #000; }
+        .copy-btn { background: var(--card); color: #fff; border: 1px solid var(--border); }
+        .btn:hover { opacity: 0.8; }
+
         .footer { position: fixed; bottom: 20px; right: 25px; z-index: 9999; }
-        .footer-link { color: var(--dim); text-decoration: none; font-size: 0.7rem; font-weight: 800; letter-spacing: 2px; opacity: 0.6; cursor: pointer; }
+        .footer-link { color: var(--dim); text-decoration: none; font-size: 0.7rem; font-weight: 800; letter-spacing: 2px; opacity: 0.5; }
         .footer-link:hover { opacity: 1; color: #fff; }
 
         @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
@@ -95,28 +92,24 @@ const html = `
 <body>
     <div class="container">
         <div class="search-area">
-            <h1 style="font-size: 2.2rem; margin-bottom:20px;">Ro<span style="color:var(--accent)">Stats</span></h1>
+            <h1 style="font-size: 2.2rem; margin-bottom:20px; letter-spacing: -1.5px;">Ro<span style="color:var(--accent)">Stats</span></h1>
             <div class="input-box">
-                <input type="text" id="placeId" placeholder="Enter Place ID...">
+                <input type="text" id="placeId" placeholder="Enter Experience ID...">
                 <button class="scan-btn" onclick="run()">Scan</button>
             </div>
-            <div id="status" style="margin-top:10px; font-size:0.7rem; color:var(--dim);">Ready</div>
+            <div id="status" style="margin-top:12px; font-size:0.7rem; color:var(--dim); font-weight: 600;">READY</div>
         </div>
 
         <div id="results" class="dashboard">
-            <div class="box" style="padding: 30px;">
-                <h2 id="gTitle">-</h2>
-                <a id="gOwner" style="color:var(--accent); text-decoration:none; font-size:0.9rem; font-weight:600; margin-top:5px; display:inline-block;" target="_blank">-</a>
-            </div>
-
-            <div class="info-card">
-                <div id="briefing" class="briefing-text">Analyzing...</div>
+            <div class="box">
+                <h2 id="gTitle" style="font-size: 1.8rem; letter-spacing: -0.5px;">-</h2>
+                <a id="gOwner" style="color:var(--accent); text-decoration:none; font-size:0.95rem; font-weight:600; margin-top:8px; display:inline-block;" target="_blank">-</a>
             </div>
 
             <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
-                <div class="box"><div class="label">Playing</div><div id="vPlay" class="val">-</div><div id="tPlay" class="tag"></div></div>
-                <div class="box"><div class="label">Rating</div><div id="vRate" class="val">-</div><div id="tRate" class="tag"></div></div>
-                <div class="box"><div class="label">Dislikes</div><div id="vDis" class="val" style="color:var(--warn)">-</div><div id="tDis" class="tag"></div></div>
+                <div class="box"><div class="label">Playing</div><div id="vPlay" class="val" style="color:var(--accent)">-</div></div>
+                <div class="box"><div class="label">Rating</div><div id="vRate" class="val">-</div></div>
+                <div class="box"><div class="label">Dislikes</div><div id="vDis" class="val" style="color:var(--warn)">-</div></div>
             </div>
 
             <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
@@ -126,14 +119,18 @@ const html = `
             </div>
 
             <div class="content-card">
-                <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--dim);">
+                <div class="date-row">
                     <span><b>Created:</b> <span id="dCreate" style="color:#fff"></span></span>
                     <span><b>Updated:</b> <span id="dUpdate" style="color:#fff"></span></span>
                 </div>
+                <div class="label" style="margin-bottom:10px;">Description</div>
                 <div id="gDesc" class="full-desc"></div>
             </div>
 
-            <a id="robloxLink" class="play-btn" target="_blank">Open Experience</a>
+            <div class="action-grid">
+                <button class="btn copy-btn" onclick="copyStats()">Copy Summary</button>
+                <a id="robloxLink" class="btn play-btn" target="_blank">Open Roblox</a>
+            </div>
         </div>
     </div>
 
@@ -145,18 +142,9 @@ const html = `
         let itv;
         const fmt = x => x >= 1e6 ? (x/1e6).toFixed(1)+'M' : x >= 1e3 ? (x/1e3).toFixed(1)+'K' : x.toLocaleString();
 
-        function setTag(id, text, type) {
-            const el = document.getElementById(id);
-            if (!el) return;
-            el.innerText = text;
-            el.className = 'tag tag-' + type;
-            el.style.display = text ? 'inline-block' : 'none';
-        }
-
         async function run() {
             const idInput = document.getElementById('placeId').value;
             if (!idInput) return;
-            
             if(itv) clearInterval(itv);
             await update();
             itv = setInterval(update, 30000);
@@ -166,8 +154,6 @@ const html = `
             const idInput = document.getElementById('placeId').value;
             const id = idInput.replace(/\\D/g, ''); 
             if(!id) return;
-
-            document.getElementById('status').innerText = "Scanning...";
 
             try {
                 const v = await fetch("/api/validate-id?id=" + id).then(r => r.json());
@@ -190,34 +176,29 @@ const html = `
                 
                 document.getElementById('dCreate').innerText = new Date(g.created).toLocaleDateString();
                 document.getElementById('dUpdate').innerText = new Date(g.updated).toLocaleDateString();
-                document.getElementById('gDesc').innerText = g.description || "No description.";
+                document.getElementById('gDesc').innerText = g.description || "No description provided.";
                 document.getElementById('robloxLink').href = "https://www.roblox.com/games/" + id;
 
-                let brief = "This game has a ";
-                if(rate >= 80) brief += "<b>very positive</b> reputation. ";
-                else if(rate < 60) brief += "<b>mixed</b> reputation. ";
-                else brief += "<b>stable</b> reputation. ";
-                brief += g.playing > 5000 ? "Traffic is <b>high</b>." : "Traffic is <b>moderate</b>.";
-                document.getElementById('briefing').innerHTML = brief;
-
-                if(g.playing > 20000) setTag('tPlay', 'Viral', 'good');
-                else if(g.playing < 20 && g.visits > 10000) setTag('tPlay', 'Inactive', 'bad');
-                else setTag('tPlay', 'Stable', 'neutral');
-
-                if(rate >= 85) setTag('tRate', 'Loved', 'good');
-                else if(rate < 65) setTag('tRate', 'Controversial', 'bad');
-                else setTag('tRate', 'Fair', 'neutral');
-
-                if(down > up * 0.5) setTag('tDis', 'High Dislikes', 'bad');
-                else setTag('tDis', 'Clean Record', 'good');
-
                 document.getElementById('results').style.display = 'flex';
-                document.getElementById('status').innerText = "Live tracking active";
+                document.getElementById('status').innerText = "LIVE UPDATING";
             } catch (e) {
-                document.getElementById('status').innerText = "Error: Proxy Busy";
+                document.getElementById('status').innerText = "OFFLINE / ERROR";
             }
+        }
+
+        function copyStats() {
+            const title = document.getElementById('gTitle').innerText;
+            const playing = document.getElementById('vPlay').innerText;
+            const rate = document.getElementById('vRate').innerText;
+            const visits = document.getElementById('vVisit').innerText;
+            
+            const text = title + " Stats:\\nActive: " + playing + "\\nRating: " + rate + "\\nVisits: " + visits + "\\nAnalyzed via RoStats";
+            navigator.clipboard.writeText(text);
+            
+            const btn = document.querySelector('.copy-btn');
+            btn.innerText = "COPIED!";
+            setTimeout(() => { btn.innerText = "COPY SUMMARY"; }, 2000);
         }
     </script>
 </body>
 </html>
-`;
