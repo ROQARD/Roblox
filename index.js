@@ -3,47 +3,53 @@ export default {
     const url = new URL(request.url);
     const PROXY = "roproxy.com";
 
-    // API 1: Validate ID
-    if (url.pathname === "/api/validate-id") {
-      const placeId = url.searchParams.get("id");
+    // --- GATEKEEPER: Handle API Routes ---
+    if (url.pathname.startsWith("/api/")) {
       try {
-        const res = await fetch(`https://apis.${PROXY}/universes/v1/places/${placeId}/universe`);
-        if (!res.ok) throw new Error("Invalid Place ID");
-        const data = await res.json();
-        return new Response(JSON.stringify({ universeId: data.universeId }), { headers: { "Content-Type": "application/json" } });
+        // API 1: Validate ID
+        if (url.pathname === "/api/validate-id") {
+          const placeId = url.searchParams.get("id");
+          const res = await fetch(`https://apis.${PROXY}/universes/v1/places/${placeId}/universe`);
+          if (!res.ok) return new Response(JSON.stringify({ error: "Invalid Place ID" }), { status: 400, headers: { "Content-Type": "application/json" } });
+          const data = await res.json();
+          return new Response(JSON.stringify({ universeId: data.universeId }), { headers: { "Content-Type": "application/json" } });
+        }
+
+        // API 2: Get Stats
+        if (url.pathname === "/api/get-stats") {
+          const uId = url.searchParams.get("uid");
+          const [gameRes, voteRes, favRes] = await Promise.all([
+            fetch(`https://games.${PROXY}/v1/games?universeIds=${uId}`),
+            fetch(`https://games.${PROXY}/v1/games/votes?universeIds=${uId}`),
+            fetch(`https://games.${PROXY}/v1/games/${uId}/favorites/count`)
+          ]);
+
+          const gameData = await gameRes.json();
+          const voteData = await voteRes.json();
+          const favData = await favRes.json();
+
+          if (!gameData?.data?.[0]) {
+            return new Response(JSON.stringify({ error: "Game data is private or empty" }), { status: 404, headers: { "Content-Type": "application/json" } });
+          }
+
+          const payload = {
+            game: gameData.data[0],
+            votes: voteData?.data?.[0] || { upVotes: 0, downVotes: 0 },
+            favorites: favData?.favoritesCount || 0
+          };
+
+          return new Response(JSON.stringify(payload), { headers: { "Content-Type": "application/json" } });
+        }
+
+        // If no API route matches but it starts with /api/
+        return new Response(JSON.stringify({ error: "Endpoint not found" }), { status: 404, headers: { "Content-Type": "application/json" } });
+
       } catch (err) {
-        return new Response(JSON.stringify({ error: "Invalid ID" }), { status: 400 });
+        return new Response(JSON.stringify({ error: "Server Error: " + err.message }), { status: 500, headers: { "Content-Type": "application/json" } });
       }
     }
 
-    // API 2: Get Stats
-    if (url.pathname === "/api/get-stats") {
-      const uId = url.searchParams.get("uid");
-      try {
-        const [gameRes, voteRes, favRes] = await Promise.all([
-          fetch(`https://games.${PROXY}/v1/games?universeIds=${uId}`),
-          fetch(`https://games.${PROXY}/v1/games/votes?universeIds=${uId}`),
-          fetch(`https://games.${PROXY}/v1/games/${uId}/favorites/count`)
-        ]);
-
-        const gameData = await gameRes.json();
-        const voteData = await voteRes.json();
-        const favData = await favRes.json();
-
-        if (!gameData?.data?.[0]) throw new Error("Data hidden");
-
-        const payload = {
-          game: gameData.data[0],
-          votes: voteData?.data?.[0] || { upVotes: 0, downVotes: 0 },
-          favorites: favData?.favoritesCount || 0
-        };
-
-        return new Response(JSON.stringify(payload), { headers: { "Content-Type": "application/json" } });
-      } catch (err) {
-        return new Response(JSON.stringify({ error: err.message }), { status: 500 });
-      }
-    }
-
+    // --- DEFAULT: Return HTML ---
     return new Response(html, { headers: { "Content-Type": "text/html" } });
   }
 };
@@ -69,7 +75,7 @@ const html = `
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; display: flex; flex-direction: column; align-items: center; padding: 40px 20px; min-height: 100vh; }
         .container { width: 100%; max-width: 650px; }
-        .search-box { background: var(--glass); border: 1px solid var(--border); padding: 30px; border-radius: 28px; text-align: center; margin-bottom: 24px; border: 1px solid var(--border); }
+        .search-box { background: var(--glass); border: 1px solid var(--border); padding: 30px; border-radius: 28px; text-align: center; margin-bottom: 24px; }
         h1 { font-weight: 800; font-size: 2.2rem; margin-bottom: 20px; letter-spacing: -1px; }
         .input-group { display: flex; gap: 10px; }
         input { flex: 1; background: rgba(0,0,0,0.5); border: 1px solid var(--border); color: white; padding: 16px 20px; border-radius: 14px; font-size: 1rem; outline: none; }
@@ -143,10 +149,11 @@ const html = `
     <a href="https://www.roblox.com/users/9461867215/profile" target="_blank">BY ROQARD</a>
 </div>
 <script>
-    const RECENT_KEY = "rostats_v7_buildsafe";
+    const RECENT_KEY = "rostats_v8_stable";
     let currentData = null;
     let currentPlaceId = "";
     window.onload = renderRecents;
+
     function formatNum(n) {
         if (!n || isNaN(n)) return "0";
         if (n >= 1e9) return (n / 1e9).toFixed(2) + "B";
@@ -154,27 +161,38 @@ const html = `
         if (n >= 1e3) return (n / 1e3).toFixed(1) + "K";
         return n.toLocaleString();
     }
+
     async function fetchStats() {
         const idInput = document.getElementById('placeId').value.trim();
         const id = idInput.match(/\\d+/)?.[0];
         const status = document.getElementById('status');
         const results = document.getElementById('results');
-        if (!id) { status.innerText = "Error: ID Required."; status.style.color = "var(--error)"; return; }
+
+        if (!id) {
+            status.innerText = "Error: ID Required.";
+            status.style.color = "var(--error)";
+            return;
+        }
+
         currentPlaceId = id;
         results.style.display = 'none';
         status.innerText = "Querying...";
         status.style.color = "var(--text-dim)";
+
         try {
             const valRes = await fetch("/api/validate-id?id=" + id);
             const valData = await valRes.json();
             if (valData.error) throw new Error(valData.error);
+
             const statRes = await fetch("/api/get-stats?uid=" + valData.universeId);
             const data = await statRes.json();
             if (data.error) throw new Error(data.error);
+
             currentData = data;
             const up = data.votes.upVotes || 0;
             const down = data.votes.downVotes || 0;
             const ratio = (up + down) > 0 ? Math.round((up / (up + down)) * 100) : 0;
+
             document.getElementById('gName').innerText = data.game.name;
             document.getElementById('gCreator').innerText = "By " + (data.game.creator?.name || "Unknown");
             document.getElementById('gPlaying').innerText = formatNum(data.game.playing);
@@ -188,6 +206,7 @@ const html = `
             document.getElementById('gUpdated').innerText = new Date(data.game.updated).toLocaleDateString();
             document.getElementById('gDesc').innerText = data.game.description || "No info.";
             document.getElementById('gameLink').href = "https://www.roblox.com/games/" + id;
+
             saveRecent(id, data.game.name);
             status.innerText = "Success.";
             status.style.color = "var(--accent)";
@@ -195,8 +214,10 @@ const html = `
         } catch (e) {
             status.innerText = "Error: " + e.message;
             status.style.color = "var(--error)";
+            console.error(e);
         }
     }
+
     function saveRecent(id, name) {
         let recents = JSON.parse(localStorage.getItem(RECENT_KEY)) || [];
         recents = recents.filter(i => i.id !== id);
@@ -204,6 +225,7 @@ const html = `
         localStorage.setItem(RECENT_KEY, JSON.stringify(recents.slice(0, 8)));
         renderRecents();
     }
+
     function renderRecents() {
         const recents = JSON.parse(localStorage.getItem(RECENT_KEY)) || [];
         const container = document.getElementById('recentContainer');
@@ -212,8 +234,10 @@ const html = `
         container.style.display = 'block';
         list.innerHTML = recents.map(g => '<div class="recent-item" onclick="setAndFetch(\\'' + g.id + '\\')">' + g.name + '</div>').join('');
     }
+
     function clearHistory() { localStorage.removeItem(RECENT_KEY); renderRecents(); }
     function setAndFetch(id) { document.getElementById('placeId').value = id; fetchStats(); }
+
     function copyData() {
         if (!currentData) return;
         const report = "Experience: " + currentData.game.name + "\\n" +
