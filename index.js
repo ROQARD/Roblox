@@ -18,7 +18,7 @@ export default {
             if (res.ok) return await res.json();
           } catch (e) { continue; }
         }
-        throw new Error("All Proxies Offline");
+        throw new Error("Proxy Error");
       };
 
       try {
@@ -86,7 +86,7 @@ const html = `
         .play-btn { background: #fff; color: #000; text-decoration: none; text-align: center; padding: 18px; border-radius: 18px; font-weight: 800; text-transform: uppercase; margin-top: 5px; display: block; }
         
         .footer { position: fixed; bottom: 20px; right: 25px; z-index: 9999; }
-        .footer-link { color: var(--dim); text-decoration: none; font-size: 0.7rem; font-weight: 800; letter-spacing: 2px; opacity: 0.5; }
+        .footer-link { color: var(--dim); text-decoration: none; font-size: 0.7rem; font-weight: 800; letter-spacing: 2px; opacity: 0.6; cursor: pointer; }
         .footer-link:hover { opacity: 1; color: #fff; }
 
         @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
@@ -147,12 +147,16 @@ const html = `
 
         function setTag(id, text, type) {
             const el = document.getElementById(id);
+            if (!el) return;
             el.innerText = text;
             el.className = 'tag tag-' + type;
             el.style.display = text ? 'inline-block' : 'none';
         }
 
         async function run() {
+            const idInput = document.getElementById('placeId').value;
+            if (!idInput) return;
+            
             if(itv) clearInterval(itv);
             await update();
             itv = setInterval(update, 30000);
@@ -160,8 +164,10 @@ const html = `
 
         async function update() {
             const idInput = document.getElementById('placeId').value;
-            const id = idInput.match(/\\\\d+/)?.[0];
+            const id = idInput.replace(/\\D/g, ''); 
             if(!id) return;
+
+            document.getElementById('status').innerText = "Scanning...";
 
             try {
                 const v = await fetch("/api/validate-id?id=" + id).then(r => r.json());
@@ -206,9 +212,9 @@ const html = `
                 else setTag('tDis', 'Clean Record', 'good');
 
                 document.getElementById('results').style.display = 'flex';
-                document.getElementById('status').innerText = "Live";
+                document.getElementById('status').innerText = "Live tracking active";
             } catch (e) {
-                document.getElementById('status').innerText = "Proxy Busy";
+                document.getElementById('status').innerText = "Error: Proxy Busy";
             }
         }
     </script>
