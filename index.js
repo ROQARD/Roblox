@@ -2,8 +2,8 @@ export default {
   async fetch(request) {
     const url = new URL(request.url);
     
-    // List of proxies to try in order
-    const PROXIES = ["roproxy.com", "rbxproxy.com"];
+    // Updated Proxy List for 2026 Stability
+    const PROXIES = ["rotunnel.com", "roproxy.com"];
 
     if (url.pathname.startsWith("/api/")) {
       const apiHeaders = { 
@@ -11,42 +11,43 @@ export default {
         "Access-Control-Allow-Origin": "*" 
       };
 
-      const tryFetch = async (endpoint, type) => {
+      const tryFetch = async (subdomain, endpoint) => {
+        let lastError = "";
         for (let proxy of PROXIES) {
           try {
-            const target = type === 'apis' 
-              ? `https://apis.${proxy}${endpoint}` 
-              : `https://games.${proxy}${endpoint}`;
-            
+            const target = `https://${subdomain}.${proxy}${endpoint}`;
             const res = await fetch(target, { 
-              headers: { "User-Agent": "RoStatsFetcher/1.0" },
-              cf: { cacheTtl: 60 } 
+              headers: { "User-Agent": "RoStats_App_ROQARD" },
+              cf: { cacheTtl: 30 } 
             });
             
             if (res.ok) return await res.json();
-          } catch (e) { continue; }
+            lastError = `Proxy ${proxy} returned ${res.status}`;
+          } catch (e) { 
+            lastError = `Proxy ${proxy} unreachable`;
+            continue; 
+          }
         }
-        throw new Error("All Proxies Offline");
+        throw new Error(lastError || "All Network Paths Blocked");
       };
 
       try {
         if (url.pathname === "/api/validate-id") {
           const placeId = url.searchParams.get("id");
-          const data = await tryFetch(`/universes/v1/places/${placeId}/universe`, 'apis');
+          const data = await tryFetch('apis', `/universes/v1/places/${placeId}/universe`);
           return new Response(JSON.stringify({ universeId: data.universeId }), { headers: apiHeaders });
         }
 
         if (url.pathname === "/api/get-stats") {
           const uId = url.searchParams.get("uid");
           
-          // Parallel fetch with fallback logic
           const [gameData, voteData, favData] = await Promise.all([
-            tryFetch(`/v1/games?universeIds=${uId}`, 'games'),
-            tryFetch(`/v1/games/votes?universeIds=${uId}`, 'games'),
-            tryFetch(`/v1/games/${uId}/favorites/count`, 'games')
+            tryFetch('games', `/v1/games?universeIds=${uId}`),
+            tryFetch('games', `/v1/games/votes?universeIds=${uId}`),
+            tryFetch('games', `/v1/games/${uId}/favorites/count`)
           ]);
 
-          if (!gameData?.data?.[0]) throw new Error("Data Empty");
+          if (!gameData?.data?.[0]) throw new Error("Game is Private");
 
           return new Response(JSON.stringify({
             game: gameData.data[0],
@@ -93,27 +94,13 @@ const html = `
         
         #status { margin-top: 15px; font-size: 0.75rem; font-weight: 600; color: var(--text-dim); min-height: 1.2em; }
 
-        .recent-container { margin-top: 20px; text-align: left; display: none; }
-        .recent-header { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.65rem; text-transform: uppercase; font-weight: 800; letter-spacing: 1px; color: var(--text-dim); }
-        .recent-list { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px; scrollbar-width: none; }
-        .recent-item { background: var(--glass); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; cursor: pointer; white-space: nowrap; font-size: 0.7rem; }
-
         .result-card { display: none; flex-direction: column; gap: 10px; animation: fadeIn 0.4s ease; }
         .header-box { background: var(--glass); border: 1px solid var(--border); padding: 25px; border-radius: 20px; text-align: center; }
         .grid-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
         .stat-item { background: var(--glass); border: 1px solid var(--border); padding: 15px; border-radius: 16px; text-align: center; }
-        .full-width { grid-column: span 3; }
         .label { font-size: 0.6rem; color: var(--text-dim); text-transform: uppercase; font-weight: 800; margin-bottom: 4px; }
         .value { font-size: 1.1rem; font-weight: 800; }
         
-        .desc-box { cursor: pointer; text-align: left; padding: 15px; }
-        #gDesc { font-size: 0.8rem; color: var(--text-dim); line-height: 1.5; max-height: 3em; overflow: hidden; transition: 0.3s; }
-        #gDesc.expanded { max-height: 1000px; color: #fff; }
-
-        .action-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .btn-action { padding: 14px; border-radius: 12px; font-weight: 800; cursor: pointer; text-transform: uppercase; font-size: 0.7rem; border: 1px solid var(--border); transition: 0.2s; text-decoration: none; color: #fff; display: flex; align-items: center; justify-content: center; }
-        .btn-copy { background: rgba(0, 255, 136, 0.05); color: var(--accent); border-color: var(--accent); }
-
         .footer { position: fixed; bottom: 20px; right: 25px; font-size: 0.65rem; font-weight: 800; opacity: 0.5; letter-spacing: 2px; }
         .footer a { color: #fff; text-decoration: none; }
 
@@ -125,14 +112,10 @@ const html = `
     <div class="search-box">
         <h1>Ro<span style="color:var(--accent)">Stats</span></h1>
         <div class="input-group">
-            <input type="text" id="placeId" placeholder="Enter Place ID..." onkeypress="if(event.key === 'Enter') fetchStats()">
+            <input type="text" id="placeId" placeholder="Place ID..." onkeypress="if(event.key === 'Enter') fetchStats()">
             <button class="scan-btn" onclick="fetchStats()">Scan</button>
         </div>
         <div id="status"></div>
-        <div id="recentContainer" class="recent-container">
-            <div class="recent-header">History <span onclick="clearHistory()" style="color:var(--error); cursor:pointer">Wipe</span></div>
-            <div id="recentList" class="recent-list"></div>
-        </div>
     </div>
 
     <div id="results" class="result-card">
@@ -143,18 +126,7 @@ const html = `
         <div class="grid-stats">
             <div class="stat-item"><div class="label">Playing</div><div id="gPlaying" class="value" style="color:var(--accent);">0</div></div>
             <div class="stat-item"><div class="label">Visits</div><div id="gVisits" class="value">0</div></div>
-            <div class="stat-item"><div class="label">Rating</div><div id="gRating" class="value" style="color:#fbff00;">0%</div></div>
-            <div class="stat-item"><div class="label">Daily Growth</div><div id="gGrowth" class="value" style="color:#00e5ff;">0</div></div>
-            <div class="stat-item"><div class="label">Likes</div><div id="gLikes" class="value">0</div></div>
-            <div class="stat-item"><div class="label">Favorites</div><div id="gFavs" class="value">0</div></div>
-            <div class="stat-item full-width desc-box" onclick="toggleDesc()">
-                <div class="label">Description (Tap to Expand)</div>
-                <div id="gDesc">-</div>
-            </div>
-        </div>
-        <div class="action-group">
-            <button class="btn-action btn-copy" onclick="copyData()">Copy Info</button>
-            <a id="gameLink" href="#" target="_blank" class="btn-action">Roblox Link</a>
+            <div class="stat-item"><div class="label">Rating</div><div id="gRating" class="value">0%</div></div>
         </div>
     </div>
 </div>
@@ -164,16 +136,6 @@ const html = `
 </div>
 
 <script>
-    const KEY = "rostats_final_stable";
-    let current = null;
-
-    function n(x) {
-        if (!x || isNaN(x)) return "0";
-        if (x >= 1e6) return (x / 1e6).toFixed(1) + "M";
-        if (x >= 1e3) return (x / 1e3).toFixed(1) + "K";
-        return x.toLocaleString();
-    }
-
     async function fetchStats() {
         const idInput = document.getElementById('placeId').value;
         const id = idInput.match(/\\d+/)?.[0];
@@ -182,7 +144,7 @@ const html = `
 
         if (!id) { status.innerText = "Error: Input ID"; return; }
         results.style.display = 'none';
-        status.innerText = "Processing...";
+        status.innerText = "Searching Roblox...";
         
         try {
             const vRes = await fetch("/api/validate-id?id=" + id);
@@ -193,55 +155,22 @@ const html = `
             const data = await sRes.json();
             if (data.error) throw new Error(data.error);
 
-            current = data;
             const up = data.votes.upVotes || 0;
             const down = data.votes.downVotes || 0;
             const ratio = (up + down) > 0 ? Math.round((up / (up + down)) * 100) : 0;
-            const daysOld = Math.max(1, (new Date() - new Date(data.game.created)) / 86400000);
 
             document.getElementById('gName').innerText = data.game.name;
             document.getElementById('gCreator').innerText = "By " + data.game.creator.name;
-            document.getElementById('gPlaying').innerText = n(data.game.playing);
-            document.getElementById('gVisits').innerText = n(data.game.visits);
+            document.getElementById('gPlaying').innerText = data.game.playing.toLocaleString();
+            document.getElementById('gVisits').innerText = data.game.visits.toLocaleString();
             document.getElementById('gRating').innerText = ratio + "%";
-            document.getElementById('gGrowth').innerText = "+" + n(Math.round(data.game.visits / daysOld));
-            document.getElementById('gLikes').innerText = n(up);
-            document.getElementById('gFavs').innerText = n(data.favorites);
-            document.getElementById('gDesc').innerText = data.game.description || "None.";
-            document.getElementById('gameLink').href = "https://www.roblox.com/games/" + id;
 
-            saveHistory(id, data.game.name);
             status.innerText = "";
             results.style.display = 'flex';
         } catch (e) {
-            status.innerText = "Failed: " + e.message;
+            status.innerText = "Error: " + e.message;
         }
     }
-
-    function toggleDesc() { document.getElementById('gDesc').classList.toggle('expanded'); }
-
-    function saveHistory(id, name) {
-        let h = JSON.parse(localStorage.getItem(KEY)) || [];
-        h = h.filter(x => String(x.id) !== String(id));
-        h.unshift({ id, name });
-        localStorage.setItem(KEY, JSON.stringify(h.slice(0, 5)));
-        renderHistory();
-    }
-
-    function renderHistory() {
-        const h = JSON.parse(localStorage.getItem(KEY)) || [];
-        document.getElementById('recentContainer').style.display = h.length ? 'block' : 'none';
-        document.getElementById('recentList').innerHTML = h.map(x => '<div class="recent-item" onclick="document.getElementById(\\'placeId\\').value=\\''+x.id+'\\';fetchStats()">'+x.name+'</div>').join('');
-    }
-
-    function clearHistory() { localStorage.removeItem(KEY); renderHistory(); }
-
-    function copyData() {
-        const t = "RoStats: " + current.game.name + " | Visits: " + n(current.game.visits);
-        navigator.clipboard.writeText(t).then(() => alert("Copied."));
-    }
-
-    window.onload = renderHistory;
 </script>
 </body>
 </html>
