@@ -1,40 +1,52 @@
 export default {
   async fetch(request) {
     const url = new URL(request.url);
-    const PROXY_BASE = "roproxy.com"; 
+    
+    // List of proxies to try in order
+    const PROXIES = ["roproxy.com", "rbxproxy.com"];
 
-    // --- API GATEWAY (Forced JSON Mode) ---
     if (url.pathname.startsWith("/api/")) {
       const apiHeaders = { 
         "Content-Type": "application/json",
         "Access-Control-Allow-Origin": "*" 
       };
 
+      const tryFetch = async (endpoint, type) => {
+        for (let proxy of PROXIES) {
+          try {
+            const target = type === 'apis' 
+              ? `https://apis.${proxy}${endpoint}` 
+              : `https://games.${proxy}${endpoint}`;
+            
+            const res = await fetch(target, { 
+              headers: { "User-Agent": "RoStatsFetcher/1.0" },
+              cf: { cacheTtl: 60 } 
+            });
+            
+            if (res.ok) return await res.json();
+          } catch (e) { continue; }
+        }
+        throw new Error("All Proxies Offline");
+      };
+
       try {
         if (url.pathname === "/api/validate-id") {
           const placeId = url.searchParams.get("id");
-          const res = await fetch(`https://apis.${PROXY_BASE}/universes/v1/places/${placeId}/universe`);
-          if (!res.ok) return new Response(JSON.stringify({ error: "Invalid ID" }), { status: 400, headers: apiHeaders });
-          
-          const data = await res.json();
+          const data = await tryFetch(`/universes/v1/places/${placeId}/universe`, 'apis');
           return new Response(JSON.stringify({ universeId: data.universeId }), { headers: apiHeaders });
         }
 
         if (url.pathname === "/api/get-stats") {
           const uId = url.searchParams.get("uid");
-          const [gameRes, voteRes, favRes] = await Promise.all([
-            fetch(`https://games.${PROXY_BASE}/v1/games?universeIds=${uId}`),
-            fetch(`https://games.${PROXY_BASE}/v1/games/votes?universeIds=${uId}`),
-            fetch(`https://games.${PROXY_BASE}/v1/games/${uId}/favorites/count`)
+          
+          // Parallel fetch with fallback logic
+          const [gameData, voteData, favData] = await Promise.all([
+            tryFetch(`/v1/games?universeIds=${uId}`, 'games'),
+            tryFetch(`/v1/games/votes?universeIds=${uId}`, 'games'),
+            tryFetch(`/v1/games/${uId}/favorites/count`, 'games')
           ]);
 
-          const gameData = await gameRes.json();
-          const voteData = await voteRes.json();
-          const favData  = await favRes.json();
-
-          if (!gameData?.data?.[0]) {
-            return new Response(JSON.stringify({ error: "Private Game" }), { status: 404, headers: apiHeaders });
-          }
+          if (!gameData?.data?.[0]) throw new Error("Data Empty");
 
           return new Response(JSON.stringify({
             game: gameData.data[0],
@@ -43,11 +55,10 @@ export default {
           }), { headers: apiHeaders });
         }
       } catch (err) {
-        return new Response(JSON.stringify({ error: "Connection Failed" }), { status: 500, headers: apiHeaders });
+        return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: apiHeaders });
       }
     }
 
-    // --- HTML FRONTEND ---
     return new Response(html, { headers: { "Content-Type": "text/html" } });
   }
 };
@@ -78,7 +89,6 @@ const html = `
         h1 { font-weight: 800; font-size: 2rem; margin-bottom: 20px; letter-spacing: -1px; }
         .input-group { display: flex; gap: 10px; }
         input { flex: 1; background: #000; border: 1px solid var(--border); color: white; padding: 14px 18px; border-radius: 12px; font-size: 1rem; }
-        input:focus { border-color: var(--accent); }
         .scan-btn { background: var(--accent); color: #000; border: none; padding: 0 22px; border-radius: 12px; font-weight: 800; cursor: pointer; text-transform: uppercase; font-size: 0.8rem; }
         
         #status { margin-top: 15px; font-size: 0.75rem; font-weight: 600; color: var(--text-dim); min-height: 1.2em; }
@@ -86,8 +96,7 @@ const html = `
         .recent-container { margin-top: 20px; text-align: left; display: none; }
         .recent-header { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.65rem; text-transform: uppercase; font-weight: 800; letter-spacing: 1px; color: var(--text-dim); }
         .recent-list { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px; scrollbar-width: none; }
-        .recent-item { background: var(--glass); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; cursor: pointer; white-space: nowrap; font-size: 0.7rem; transition: 0.2s; }
-        .recent-item:hover { border-color: var(--accent); color: var(--accent); }
+        .recent-item { background: var(--glass); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; cursor: pointer; white-space: nowrap; font-size: 0.7rem; }
 
         .result-card { display: none; flex-direction: column; gap: 10px; animation: fadeIn 0.4s ease; }
         .header-box { background: var(--glass); border: 1px solid var(--border); padding: 25px; border-radius: 20px; text-align: center; }
@@ -104,11 +113,9 @@ const html = `
         .action-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .btn-action { padding: 14px; border-radius: 12px; font-weight: 800; cursor: pointer; text-transform: uppercase; font-size: 0.7rem; border: 1px solid var(--border); transition: 0.2s; text-decoration: none; color: #fff; display: flex; align-items: center; justify-content: center; }
         .btn-copy { background: rgba(0, 255, 136, 0.05); color: var(--accent); border-color: var(--accent); }
-        .btn-action:hover { transform: translateY(-2px); }
 
         .footer { position: fixed; bottom: 20px; right: 25px; font-size: 0.65rem; font-weight: 800; opacity: 0.5; letter-spacing: 2px; }
         .footer a { color: #fff; text-decoration: none; }
-        .footer a:hover { color: var(--accent); opacity: 1; }
 
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
@@ -157,7 +164,7 @@ const html = `
 </div>
 
 <script>
-    const KEY = "rostats_live_v1";
+    const KEY = "rostats_final_stable";
     let current = null;
 
     function n(x) {
@@ -173,15 +180,9 @@ const html = `
         const status = document.getElementById('status');
         const results = document.getElementById('results');
 
-        if (!id) { 
-            status.innerText = "Error: Input ID"; 
-            status.style.color = "var(--error)";
-            return; 
-        }
-        
+        if (!id) { status.innerText = "Error: Input ID"; return; }
         results.style.display = 'none';
         status.innerText = "Processing...";
-        status.style.color = "var(--text-dim)";
         
         try {
             const vRes = await fetch("/api/validate-id?id=" + id);
@@ -196,19 +197,17 @@ const html = `
             const up = data.votes.upVotes || 0;
             const down = data.votes.downVotes || 0;
             const ratio = (up + down) > 0 ? Math.round((up / (up + down)) * 100) : 0;
-
             const daysOld = Math.max(1, (new Date() - new Date(data.game.created)) / 86400000);
-            const growth = Math.round(data.game.visits / daysOld);
 
             document.getElementById('gName').innerText = data.game.name;
             document.getElementById('gCreator').innerText = "By " + data.game.creator.name;
             document.getElementById('gPlaying').innerText = n(data.game.playing);
             document.getElementById('gVisits').innerText = n(data.game.visits);
             document.getElementById('gRating').innerText = ratio + "%";
-            document.getElementById('gGrowth').innerText = "+" + n(growth);
+            document.getElementById('gGrowth').innerText = "+" + n(Math.round(data.game.visits / daysOld));
             document.getElementById('gLikes').innerText = n(up);
             document.getElementById('gFavs').innerText = n(data.favorites);
-            document.getElementById('gDesc').innerText = data.game.description || "No description.";
+            document.getElementById('gDesc').innerText = data.game.description || "None.";
             document.getElementById('gameLink').href = "https://www.roblox.com/games/" + id;
 
             saveHistory(id, data.game.name);
@@ -216,7 +215,6 @@ const html = `
             results.style.display = 'flex';
         } catch (e) {
             status.innerText = "Failed: " + e.message;
-            status.style.color = "var(--error)";
         }
     }
 
@@ -239,7 +237,7 @@ const html = `
     function clearHistory() { localStorage.removeItem(KEY); renderHistory(); }
 
     function copyData() {
-        const t = "RoStats: " + current.game.name + " | Visits: " + n(current.game.visits) + " | Rating: " + document.getElementById('gRating').innerText;
+        const t = "RoStats: " + current.game.name + " | Visits: " + n(current.game.visits);
         navigator.clipboard.writeText(t).then(() => alert("Copied."));
     }
 
