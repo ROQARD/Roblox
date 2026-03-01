@@ -49,20 +49,28 @@ const html = `<!DOCTYPE html>
         body { background: var(--bg); color: var(--text); padding: 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
         .container { width: 100%; max-width: 650px; padding-bottom: 80px; }
         
-        .search-area { background: var(--card); border: 1px solid var(--border); padding: 30px; border-radius: 24px; text-align: center; margin-bottom: 15px; position: relative; }
+        .search-area { background: var(--card); border: 1px solid var(--border); padding: 30px; border-radius: 24px; text-align: center; margin-bottom: 12px; }
         .input-box { display: flex; gap: 10px; background: #000; padding: 6px; border-radius: 14px; border: 1px solid var(--border); }
-        input { flex: 1; background: transparent; border: none; color: white; padding: 10px 15px; font-size: 1rem; outline: none; }
-        .scan-btn { background: var(--accent); color: #000; border: none; padding: 0 25px; border-radius: 10px; font-weight: 800; cursor: pointer; text-transform: uppercase; font-size: 0.75rem; }
+        input { flex: 1; background: transparent; border: none; color: white; padding: 10px 15px; font-size: 0.9rem; outline: none; }
+        .scan-btn { background: var(--accent); color: #000; border: none; padding: 0 20px; border-radius: 10px; font-weight: 800; cursor: pointer; text-transform: uppercase; font-size: 0.7rem; }
         
+        .quick-nav { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; width: 100%; }
+        .nav-label { font-size: 0.55rem; color: #444; text-transform: uppercase; font-weight: 900; width: 100%; margin-bottom: 4px; letter-spacing: 1px; }
+        .chip-group { display: flex; gap: 6px; flex-wrap: wrap; }
+        .nav-chip { background: var(--card); border: 1px solid var(--border); color: var(--dim); padding: 6px 12px; border-radius: 8px; font-size: 0.65rem; font-weight: 800; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+        .nav-chip:hover { border-color: var(--accent); color: #fff; }
+        .del-recent { color: var(--warn); font-size: 0.8rem; margin-left: 4px; padding: 2px; }
+
         .dashboard { display: none; flex-direction: column; gap: 12px; animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
-        .box { background: var(--card); border: 1px solid var(--border); padding: 20px; border-radius: 18px; position: relative; overflow: hidden; }
+        .box { background: var(--card); border: 1px solid var(--border); padding: 20px; border-radius: 18px; position: relative; }
+        
+        .thumb-wrap { width: 120px; height: 120px; border-radius: 18px; background: #111; margin: 0 auto 15px; overflow: hidden; display: none; border: 1px solid var(--border); }
+        .thumb-wrap img { width: 100%; height: 100%; object-fit: cover; }
+
         .label { font-size: 0.6rem; color: var(--dim); text-transform: uppercase; font-weight: 800; margin-bottom: 6px; letter-spacing: 0.8px; }
-        .val { font-size: 1.3rem; font-weight: 800; display: flex; align-items: center; gap: 6px; }
+        .val { font-size: 1.3rem; font-weight: 800; }
         .trend { font-size: 0.7rem; font-weight: 600; margin-top: 4px; }
         
-        .loading .val { height: 24px; width: 60%; background: #1a1a1a; border-radius: 6px; animation: pulse 1.5s infinite; color: transparent; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
-
         .content-card { background: var(--card); border: 1px solid var(--border); padding: 25px; border-radius: 20px; }
         .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
         .meta-item { font-size: 0.75rem; color: var(--dim); }
@@ -73,11 +81,7 @@ const html = `<!DOCTYPE html>
         .play-btn { background: #fff; color: #000; }
         .copy-btn { background: #111; color: #fff; border: 1px solid var(--border); }
         
-        .live-tag { position: absolute; top: 15px; right: 20px; font-size: 0.55rem; color: var(--accent); font-weight: 800; display: none; align-items: center; gap: 4px; border: 1px solid rgba(74, 222, 128, 0.2); padding: 4px 8px; border-radius: 6px; }
-        .dot { width: 5px; height: 5px; background: var(--accent); border-radius: 50%; animation: blink 1s infinite; }
-        @keyframes blink { 0% { opacity: 0.2; } 50% { opacity: 1; } 100% { opacity: 0.2; } }
-
-        .footer { position: fixed; bottom: 20px; right: 25px; z-index: 9999; }
+        .footer { position: fixed; bottom: 20px; right: 25px; }
         .footer-link { color: var(--dim); text-decoration: none; font-size: 0.65rem; font-weight: 800; letter-spacing: 1.5px; opacity: 0.4; }
         @keyframes slideUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
     </style>
@@ -85,17 +89,28 @@ const html = `<!DOCTYPE html>
 <body>
     <div class="container">
         <div class="search-area">
-            <div id="liveTag" class="live-tag"><div class="dot"></div> LIVE</div>
             <h1 style="font-size: 2rem; margin-bottom:20px; letter-spacing: -1.2px;">Ro<span style="color:var(--accent)">Stats</span></h1>
             <div class="input-box">
-                <input type="text" id="placeId" placeholder="Experience ID...">
+                <input type="text" id="placeId" placeholder="Paste Game Link or ID...">
                 <button class="scan-btn" onclick="run()">Scan</button>
+            </div>
+        </div>
+
+        <div class="quick-nav">
+            <div class="nav-label">Recommended</div>
+            <div class="chip-group">
+                <div class="nav-chip" onclick="quickScan('109612380137176')">109612380137176</div>
+            </div>
+            <div id="recentSection" style="display:none; width:100%; margin-top:15px;">
+                <div class="nav-label">Recent Searches</div>
+                <div id="recentContainer" class="chip-group"></div>
             </div>
         </div>
 
         <div id="results" class="dashboard">
             <div class="box" style="text-align:center">
-                <h2 id="gTitle" style="font-size: 1.6rem; letter-spacing: -0.5px;">-</h2>
+                <div id="thumbWrap" class="thumb-wrap"><img id="gThumb" src="" onerror="this.parentElement.style.display='none'"></div>
+                <h2 id="gTitle" style="font-size: 1.5rem;">-</h2>
                 <div id="gGenre" style="font-size:0.6rem; color:var(--dim); text-transform:uppercase; margin-top:5px; font-weight:800">-</div>
                 <a id="gOwner" style="color:var(--accent); text-decoration:none; font-size:0.9rem; font-weight:600; margin-top:10px; display:inline-block;" target="_blank">-</a>
             </div>
@@ -133,14 +148,61 @@ const html = `<!DOCTYPE html>
     <div class="footer"><a href="https://www.roblox.com/users/9461867215/profile" class="footer-link" target="_blank">BY ROQARD</a></div>
 
     <script>
-        let itv;
-        let lastCount = 0;
+        let itv, lastCount = 0;
         const fmt = x => x >= 1e6 ? (x/1e6).toFixed(1)+'M' : x >= 1e3 ? (x/1e3).toFixed(1)+'K' : x.toLocaleString();
 
+        function saveRecent(id) {
+            let recents = JSON.parse(localStorage.getItem('roStats_v2') || '[]');
+            recents = recents.filter(x => x !== id);
+            recents.unshift(id);
+            if (recents.length > 4) recents.pop();
+            localStorage.setItem('roStats_v2', JSON.stringify(recents));
+            renderRecents();
+        }
+
+        function removeRecent(e, id) {
+            e.stopPropagation();
+            let recents = JSON.parse(localStorage.getItem('roStats_v2') || '[]');
+            recents = recents.filter(x => x !== id);
+            localStorage.setItem('roStats_v2', JSON.stringify(recents));
+            renderRecents();
+        }
+
+        function renderRecents() {
+            const container = document.getElementById('recentContainer');
+            const section = document.getElementById('recentSection');
+            const recents = JSON.parse(localStorage.getItem('roStats_v2') || '[]');
+            
+            if(recents.length === 0) { section.style.display = 'none'; return; }
+            section.style.display = 'block';
+            container.innerHTML = '';
+            
+            recents.forEach(id => {
+                const chip = document.createElement('div');
+                chip.className = 'nav-chip';
+                chip.innerHTML = id + '<span class="del-recent">×</span>';
+                chip.onclick = () => quickScan(id);
+                chip.querySelector('.del-recent').onclick = (e) => removeRecent(e, id);
+                container.appendChild(chip);
+            });
+        }
+
+        function quickScan(id) {
+            document.getElementById('placeId').value = id;
+            run();
+        }
+
         async function run() { 
-            const i = document.getElementById('placeId').value;
-            if(!i) return;
-            document.getElementById('results').classList.add('loading');
+            let raw = document.getElementById('placeId').value.trim();
+            if(!raw) return;
+            
+            // Link detection: Extract ID from URL if present
+            const match = raw.match(/games\\/(\\d+)/);
+            const id = match ? match[1] : raw.replace(/\\D/g, '');
+            
+            if(!id) return;
+            document.getElementById('placeId').value = id;
+            saveRecent(id);
             document.getElementById('results').style.display = 'flex';
             if(itv) clearInterval(itv);
             await update();
@@ -148,15 +210,16 @@ const html = `<!DOCTYPE html>
         }
 
         async function update() {
-            const i = document.getElementById('placeId').value.replace(/\\D/g, '');
-            if(!i) return;
-
+            const i = document.getElementById('placeId').value;
             try {
                 const v = await fetch("/api/validate-id?id=" + i).then(r => r.json());
                 const d = await fetch("/api/get-stats?uid=" + v.universeId).then(r => r.json());
                 const g = d.game;
-                const up = d.votes.upVotes || 0;
-                const down = d.votes.downVotes || 0;
+                
+                document.getElementById('gThumb').src = "https://www.roblox.com/asset-thumbnail/image?assetId=" + i + "&width=420&height=420&format=png";
+                document.getElementById('thumbWrap').style.display = 'block';
+
+                const up = d.votes.upVotes || 0, down = d.votes.downVotes || 0;
                 const rate = (up+down) > 0 ? Math.round((up/(up+down))*100) : 0;
                 const growth = Math.round(g.visits / Math.max(1, (new Date() - new Date(g.created)) / (1000 * 60 * 60 * 24)));
 
@@ -179,27 +242,23 @@ const html = `<!DOCTYPE html>
                 document.getElementById('vVisit').innerText = fmt(g.visits);
                 document.getElementById('vLike').innerText = fmt(up);
                 document.getElementById('vFav').innerText = fmt(d.favorites);
-                
                 document.getElementById('dCreate').innerText = new Date(g.created).toLocaleDateString();
                 document.getElementById('dUpdate').innerText = new Date(g.updated).toLocaleDateString();
                 document.getElementById('vMax').innerText = g.maxPlayers || "--";
                 document.getElementById('vGrowth').innerText = fmt(growth) + "/day";
                 document.getElementById('gDesc').innerText = g.description || "No description.";
                 document.getElementById('robloxLink').href = "https://www.roblox.com/games/" + i;
-
-                document.getElementById('results').classList.remove('loading');
-                document.getElementById('liveTag').style.display = 'flex';
             } catch (e) {}
         }
 
         function copyStats() {
             const t = document.getElementById('gTitle').innerText;
             const p = document.getElementById('vPlay').innerText;
-            const r = document.getElementById('vRate').innerText;
-            const text = t + " Profile\\nActive: " + p + "\\nRating: " + r + "\\nChecked on RoStats";
-            navigator.clipboard.writeText(text);
+            navigator.clipboard.writeText(t + " Stats\\nActive: " + p + "\\nvia RoStats");
             const b = document.querySelector('.copy-btn'); b.innerText = "COPIED";
             setTimeout(() => { b.innerText = "COPY SUMMARY"; }, 2000);
         }
+
+        renderRecents();
     </script>
 </body></html>`;
