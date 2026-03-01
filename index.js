@@ -50,7 +50,7 @@ const html = `<!DOCTYPE html>
         .container { width: 100%; max-width: 650px; padding-bottom: 80px; }
         
         .search-area { background: var(--card); border: 1px solid var(--border); padding: 30px; border-radius: 24px; text-align: center; margin-bottom: 12px; }
-        .input-box { display: flex; gap: 10px; background: #000; padding: 6px; border-radius: 14px; border: 1px solid var(--border); }
+        .input-box { display: flex; gap: 10px; background: #000; padding: 6px; border-radius: 14px; border: 1px solid var(--border); transition: 0.3s; }
         input { flex: 1; background: transparent; border: none; color: white; padding: 10px 15px; font-size: 0.9rem; outline: none; }
         .scan-btn { background: var(--accent); color: #000; border: none; padding: 0 20px; border-radius: 10px; font-weight: 800; cursor: pointer; text-transform: uppercase; font-size: 0.7rem; }
         
@@ -58,7 +58,7 @@ const html = `<!DOCTYPE html>
         .nav-label { font-size: 0.55rem; color: #444; text-transform: uppercase; font-weight: 900; width: 100%; margin-bottom: 4px; letter-spacing: 1px; }
         .chip-group { display: flex; gap: 6px; flex-wrap: wrap; }
         .nav-chip { background: var(--card); border: 1px solid var(--border); color: var(--dim); padding: 8px 14px; border-radius: 10px; font-size: 0.7rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: 0.2s; }
-        .nav-chip:hover { border-color: var(--accent); color: #fff; transform: translateY(-1px); }
+        .nav-chip:hover { border-color: var(--accent); color: #fff; }
         .del-recent { color: var(--warn); font-size: 1rem; line-height: 1; margin-left: 4px; }
 
         .dashboard { display: none; flex-direction: column; gap: 12px; animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
@@ -77,6 +77,7 @@ const html = `<!DOCTYPE html>
         .play-btn { background: #fff; color: #000; }
         .copy-btn { background: #111; color: #fff; border: 1px solid var(--border); }
         
+        .error-msg { color: var(--warn); font-size: 0.65rem; font-weight: 800; margin-top: 10px; display: none; }
         .footer { position: fixed; bottom: 20px; right: 25px; }
         .footer-link { color: var(--dim); text-decoration: none; font-size: 0.65rem; font-weight: 800; letter-spacing: 1.5px; opacity: 0.4; }
         @keyframes slideUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
@@ -86,10 +87,11 @@ const html = `<!DOCTYPE html>
     <div class="container">
         <div class="search-area">
             <h1 style="font-size: 2rem; margin-bottom:20px; letter-spacing: -1.2px;">Ro<span style="color:var(--accent)">Stats</span></h1>
-            <div class="input-box">
+            <div class="input-box" id="inputWrapper">
                 <input type="text" id="placeId" placeholder="Paste Game Link or ID...">
-                <button class="scan-btn" onclick="run()">Scan</button>
+                <button class="scan-btn" id="scanBtn" onclick="run()">Scan</button>
             </div>
+            <div id="errorBox" class="error-msg">EXPERIENCE NOT FOUND</div>
         </div>
 
         <div id="navWrapper" class="nav-wrapper">
@@ -97,11 +99,10 @@ const html = `<!DOCTYPE html>
                 <div class="nav-label">Recent</div>
                 <div id="recentContainer" class="chip-group"></div>
             </div>
-            
             <div id="recomBlock">
                 <div class="nav-label">Recommended</div>
-                <div class="chip-group">
-                    <div class="nav-chip" onclick="quickScan('109612380137176', 'Sols RNG')">Sols RNG</div>
+                <div id="recomContainer" class="chip-group">
+                    <div class="nav-chip">Loading...</div>
                 </div>
             </div>
         </div>
@@ -150,32 +151,45 @@ const html = `<!DOCTYPE html>
         let itv, lastCount = 0;
         const fmt = x => x >= 1e6 ? (x/1e6).toFixed(1)+'M' : x >= 1e3 ? (x/1e3).toFixed(1)+'K' : x.toLocaleString();
 
+        async function getName(id) {
+            try {
+                const v = await fetch("/api/validate-id?id=" + id).then(r => r.json());
+                const d = await fetch("/api/get-stats?uid=" + v.universeId).then(r => r.json());
+                return d.game.name;
+            } catch (e) { return null; }
+        }
+
+        async function loadRecommended() {
+            const id = '109612380137176';
+            const name = await getName(id);
+            if(!name) return;
+            document.getElementById('recomContainer').innerHTML = '<div class="nav-chip" onclick="quickScan(\\''+id+'\\')">'+name+'</div>';
+        }
+
         function saveRecent(id, name) {
-            let recents = JSON.parse(localStorage.getItem('roStats_v3') || '[]');
+            let recents = JSON.parse(localStorage.getItem('roStats_v5') || '[]');
             recents = recents.filter(x => x.id !== id);
             recents.unshift({id, name});
             if (recents.length > 4) recents.pop();
-            localStorage.setItem('roStats_v3', JSON.stringify(recents));
+            localStorage.setItem('roStats_v5', JSON.stringify(recents));
             renderRecents();
         }
 
         function removeRecent(e, id) {
             e.stopPropagation();
-            let recents = JSON.parse(localStorage.getItem('roStats_v3') || '[]');
+            let recents = JSON.parse(localStorage.getItem('roStats_v5') || '[]');
             recents = recents.filter(x => x.id !== id);
-            localStorage.setItem('roStats_v3', JSON.stringify(recents));
+            localStorage.setItem('roStats_v5', JSON.stringify(recents));
             renderRecents();
         }
 
         function renderRecents() {
             const container = document.getElementById('recentContainer');
             const block = document.getElementById('recentBlock');
-            const recents = JSON.parse(localStorage.getItem('roStats_v3') || '[]');
-            
+            const recents = JSON.parse(localStorage.getItem('roStats_v5') || '[]');
             if(recents.length === 0) { block.style.display = 'none'; return; }
             block.style.display = 'block';
             container.innerHTML = '';
-            
             recents.forEach(item => {
                 const chip = document.createElement('div');
                 chip.className = 'nav-chip';
@@ -192,15 +206,32 @@ const html = `<!DOCTYPE html>
         }
 
         async function run() { 
+            const errorBox = document.getElementById('errorBox');
+            const inputWrap = document.getElementById('inputWrapper');
+            const scanBtn = document.getElementById('scanBtn');
+            
             let raw = document.getElementById('placeId').value.trim();
             if(!raw) return;
             const match = raw.match(/games\\/(\\d+)/);
             const id = match ? match[1] : raw.replace(/\\D/g, '');
-            if(!id) return;
+            
+            errorBox.style.display = 'none';
+            inputWrap.style.borderColor = 'var(--border)';
+            scanBtn.innerText = 'WAIT...';
 
-            // Hide nav area immediately on search
+            // Pre-validation: Don't hide anything until we know it exists
+            const name = await getName(id);
+            
+            if(!name) {
+                errorBox.style.display = 'block';
+                inputWrap.style.borderColor = 'var(--warn)';
+                scanBtn.innerText = 'SCAN';
+                return;
+            }
+
             document.getElementById('navWrapper').style.display = 'none';
             document.getElementById('results').style.display = 'flex';
+            scanBtn.innerText = 'SCAN';
             
             if(itv) clearInterval(itv);
             await update(id);
@@ -213,7 +244,7 @@ const html = `<!DOCTYPE html>
                 const d = await fetch("/api/get-stats?uid=" + v.universeId).then(r => r.json());
                 const g = d.game;
                 
-                saveRecent(i, g.name); // Updates name in history if changed
+                saveRecent(i, g.name);
                 
                 document.getElementById('gThumb').src = "https://www.roblox.com/asset-thumbnail/image?assetId=" + i + "&width=420&height=420&format=png";
                 document.getElementById('thumbWrap').style.display = 'block';
@@ -259,5 +290,6 @@ const html = `<!DOCTYPE html>
         }
 
         renderRecents();
+        loadRecommended();
     </script>
 </body></html>`;
