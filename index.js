@@ -54,30 +54,26 @@ const html = `<!DOCTYPE html>
         input { flex: 1; background: transparent; border: none; color: white; padding: 10px 15px; font-size: 0.9rem; outline: none; }
         .scan-btn { background: var(--accent); color: #000; border: none; padding: 0 20px; border-radius: 10px; font-weight: 800; cursor: pointer; text-transform: uppercase; font-size: 0.7rem; }
         
-        .quick-nav { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; width: 100%; }
+        .nav-wrapper { width: 100%; display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px; }
         .nav-label { font-size: 0.55rem; color: #444; text-transform: uppercase; font-weight: 900; width: 100%; margin-bottom: 4px; letter-spacing: 1px; }
         .chip-group { display: flex; gap: 6px; flex-wrap: wrap; }
-        .nav-chip { background: var(--card); border: 1px solid var(--border); color: var(--dim); padding: 6px 12px; border-radius: 8px; font-size: 0.65rem; font-weight: 800; cursor: pointer; display: flex; align-items: center; gap: 6px; }
-        .nav-chip:hover { border-color: var(--accent); color: #fff; }
-        .del-recent { color: var(--warn); font-size: 0.8rem; margin-left: 4px; padding: 2px; }
+        .nav-chip { background: var(--card); border: 1px solid var(--border); color: var(--dim); padding: 8px 14px; border-radius: 10px; font-size: 0.7rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: 0.2s; }
+        .nav-chip:hover { border-color: var(--accent); color: #fff; transform: translateY(-1px); }
+        .del-recent { color: var(--warn); font-size: 1rem; line-height: 1; margin-left: 4px; }
 
         .dashboard { display: none; flex-direction: column; gap: 12px; animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
-        .box { background: var(--card); border: 1px solid var(--border); padding: 20px; border-radius: 18px; position: relative; }
-        
+        .box { background: var(--card); border: 1px solid var(--border); padding: 20px; border-radius: 18px; }
         .thumb-wrap { width: 120px; height: 120px; border-radius: 18px; background: #111; margin: 0 auto 15px; overflow: hidden; display: none; border: 1px solid var(--border); }
         .thumb-wrap img { width: 100%; height: 100%; object-fit: cover; }
-
-        .label { font-size: 0.6rem; color: var(--dim); text-transform: uppercase; font-weight: 800; margin-bottom: 6px; letter-spacing: 0.8px; }
+        .label { font-size: 0.6rem; color: var(--dim); text-transform: uppercase; font-weight: 800; margin-bottom: 6px; }
         .val { font-size: 1.3rem; font-weight: 800; }
         .trend { font-size: 0.7rem; font-weight: 600; margin-top: 4px; }
-        
         .content-card { background: var(--card); border: 1px solid var(--border); padding: 25px; border-radius: 20px; }
         .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
         .meta-item { font-size: 0.75rem; color: var(--dim); }
         .meta-item b { color: #fff; display: block; font-size: 0.85rem; margin-top: 2px; }
-
         .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .btn { text-decoration: none; text-align: center; padding: 16px; border-radius: 14px; font-weight: 800; text-transform: uppercase; font-size: 0.8rem; cursor: pointer; border: none; transition: 0.2s; }
+        .btn { text-decoration: none; text-align: center; padding: 16px; border-radius: 14px; font-weight: 800; text-transform: uppercase; font-size: 0.8rem; cursor: pointer; border: none; }
         .play-btn { background: #fff; color: #000; }
         .copy-btn { background: #111; color: #fff; border: 1px solid var(--border); }
         
@@ -96,14 +92,17 @@ const html = `<!DOCTYPE html>
             </div>
         </div>
 
-        <div class="quick-nav">
-            <div class="nav-label">Recommended</div>
-            <div class="chip-group">
-                <div class="nav-chip" onclick="quickScan('109612380137176')">109612380137176</div>
-            </div>
-            <div id="recentSection" style="display:none; width:100%; margin-top:15px;">
-                <div class="nav-label">Recent Searches</div>
+        <div id="navWrapper" class="nav-wrapper">
+            <div id="recentBlock" style="display:none">
+                <div class="nav-label">Recent</div>
                 <div id="recentContainer" class="chip-group"></div>
+            </div>
+            
+            <div id="recomBlock">
+                <div class="nav-label">Recommended</div>
+                <div class="chip-group">
+                    <div class="nav-chip" onclick="quickScan('109612380137176', 'Sols RNG')">Sols RNG</div>
+                </div>
             </div>
         </div>
 
@@ -151,38 +150,38 @@ const html = `<!DOCTYPE html>
         let itv, lastCount = 0;
         const fmt = x => x >= 1e6 ? (x/1e6).toFixed(1)+'M' : x >= 1e3 ? (x/1e3).toFixed(1)+'K' : x.toLocaleString();
 
-        function saveRecent(id) {
-            let recents = JSON.parse(localStorage.getItem('roStats_v2') || '[]');
-            recents = recents.filter(x => x !== id);
-            recents.unshift(id);
+        function saveRecent(id, name) {
+            let recents = JSON.parse(localStorage.getItem('roStats_v3') || '[]');
+            recents = recents.filter(x => x.id !== id);
+            recents.unshift({id, name});
             if (recents.length > 4) recents.pop();
-            localStorage.setItem('roStats_v2', JSON.stringify(recents));
+            localStorage.setItem('roStats_v3', JSON.stringify(recents));
             renderRecents();
         }
 
         function removeRecent(e, id) {
             e.stopPropagation();
-            let recents = JSON.parse(localStorage.getItem('roStats_v2') || '[]');
-            recents = recents.filter(x => x !== id);
-            localStorage.setItem('roStats_v2', JSON.stringify(recents));
+            let recents = JSON.parse(localStorage.getItem('roStats_v3') || '[]');
+            recents = recents.filter(x => x.id !== id);
+            localStorage.setItem('roStats_v3', JSON.stringify(recents));
             renderRecents();
         }
 
         function renderRecents() {
             const container = document.getElementById('recentContainer');
-            const section = document.getElementById('recentSection');
-            const recents = JSON.parse(localStorage.getItem('roStats_v2') || '[]');
+            const block = document.getElementById('recentBlock');
+            const recents = JSON.parse(localStorage.getItem('roStats_v3') || '[]');
             
-            if(recents.length === 0) { section.style.display = 'none'; return; }
-            section.style.display = 'block';
+            if(recents.length === 0) { block.style.display = 'none'; return; }
+            block.style.display = 'block';
             container.innerHTML = '';
             
-            recents.forEach(id => {
+            recents.forEach(item => {
                 const chip = document.createElement('div');
                 chip.className = 'nav-chip';
-                chip.innerHTML = id + '<span class="del-recent">×</span>';
-                chip.onclick = () => quickScan(id);
-                chip.querySelector('.del-recent').onclick = (e) => removeRecent(e, id);
+                chip.innerHTML = item.name + '<span class="del-recent">×</span>';
+                chip.onclick = () => quickScan(item.id);
+                chip.querySelector('.del-recent').onclick = (e) => removeRecent(e, item.id);
                 container.appendChild(chip);
             });
         }
@@ -195,26 +194,26 @@ const html = `<!DOCTYPE html>
         async function run() { 
             let raw = document.getElementById('placeId').value.trim();
             if(!raw) return;
-            
-            // Link detection: Extract ID from URL if present
             const match = raw.match(/games\\/(\\d+)/);
             const id = match ? match[1] : raw.replace(/\\D/g, '');
-            
             if(!id) return;
-            document.getElementById('placeId').value = id;
-            saveRecent(id);
+
+            // Hide nav area immediately on search
+            document.getElementById('navWrapper').style.display = 'none';
             document.getElementById('results').style.display = 'flex';
+            
             if(itv) clearInterval(itv);
-            await update();
-            itv = setInterval(update, 30000);
+            await update(id);
+            itv = setInterval(() => update(id), 30000);
         }
 
-        async function update() {
-            const i = document.getElementById('placeId').value;
+        async function update(i) {
             try {
                 const v = await fetch("/api/validate-id?id=" + i).then(r => r.json());
                 const d = await fetch("/api/get-stats?uid=" + v.universeId).then(r => r.json());
                 const g = d.game;
+                
+                saveRecent(i, g.name); // Updates name in history if changed
                 
                 document.getElementById('gThumb').src = "https://www.roblox.com/asset-thumbnail/image?assetId=" + i + "&width=420&height=420&format=png";
                 document.getElementById('thumbWrap').style.display = 'block';
