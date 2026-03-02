@@ -5,14 +5,31 @@ export default {
 
     if (url.pathname.startsWith("/api/")) {
       const apiHeaders = { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" };
+      
+      // Cloudflare Turnstile Server-Side Verification
+      if (url.pathname === "/api/verify-captcha") {
+        const token = url.searchParams.get("token");
+        const secret = "0x4AAAAAACk-FBhYSFtiH6dRcg_6osS-xLM"; 
+        const outcome = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: `secret=${secret}&response=${token}`
+        }).then(res => res.json());
+        return new Response(JSON.stringify(outcome), { headers: apiHeaders });
+      }
+
       const tryFetch = async (s, e) => {
         for (let p of PROXIES) {
           try {
             const r = await fetch(`https://${s}.${p}${e}`, { headers: { "User-Agent": "RoStats_Standard" }});
+            if (r.status === 403) throw new Error("Private");
             if (r.ok) return await r.json();
-          } catch (err) { continue; }
+          } catch (err) { 
+            if (err.message === "Private") throw err;
+            continue; 
+          }
         }
-        throw new Error("Proxy Error");
+        throw new Error("NotFound");
       };
 
       try {
@@ -42,6 +59,7 @@ const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>RoStats</title>
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
         :root { --bg: #050505; --card: #0c0c0c; --border: #1a1a1a; --accent: #4ade80; --text: #fff; --dim: #71717a; --warn: #ff4444; }
@@ -53,6 +71,9 @@ const html = `<!DOCTYPE html>
         .input-box { display: flex; gap: 10px; background: #000; padding: 6px; border-radius: 14px; border: 1px solid var(--border); transition: 0.3s; }
         input { flex: 1; background: transparent; border: none; color: white; padding: 10px 15px; font-size: 0.9rem; outline: none; }
         .scan-btn { background: var(--accent); color: #000; border: none; padding: 0 20px; border-radius: 10px; font-weight: 800; cursor: pointer; text-transform: uppercase; font-size: 0.7rem; }
+        .scan-btn:disabled { opacity: 0.3; cursor: not-allowed; filter: grayscale(1); }
+
+        .captcha-box { margin: 15px 0; display: flex; justify-content: center; min-height: 65px; }
         
         .nav-wrapper { width: 100%; display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px; }
         .nav-label { font-size: 0.55rem; color: #444; text-transform: uppercase; font-weight: 900; width: 100%; margin-bottom: 4px; letter-spacing: 1px; }
@@ -62,20 +83,18 @@ const html = `<!DOCTYPE html>
         .del-recent { color: var(--warn); font-size: 1rem; line-height: 1; margin-left: 4px; }
 
         .dashboard { display: none; flex-direction: column; gap: 12px; animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
-        .box { background: var(--card); border: 1px solid var(--border); padding: 20px; border-radius: 18px; }
+        .box { background: var(--card); border: 1px solid var(--border); padding: 20px; border-radius: 18px; position: relative; }
         .thumb-wrap { width: 120px; height: 120px; border-radius: 18px; background: #111; margin: 0 auto 15px; overflow: hidden; display: none; border: 1px solid var(--border); }
         .thumb-wrap img { width: 100%; height: 100%; object-fit: cover; }
+
         .label { font-size: 0.6rem; color: var(--dim); text-transform: uppercase; font-weight: 800; margin-bottom: 6px; }
         .val { font-size: 1.3rem; font-weight: 800; }
         .trend { font-size: 0.7rem; font-weight: 600; margin-top: 4px; }
+        
         .content-card { background: var(--card); border: 1px solid var(--border); padding: 25px; border-radius: 20px; }
         .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
         .meta-item { font-size: 0.75rem; color: var(--dim); }
         .meta-item b { color: #fff; display: block; font-size: 0.85rem; margin-top: 2px; }
-        .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .btn { text-decoration: none; text-align: center; padding: 16px; border-radius: 14px; font-weight: 800; text-transform: uppercase; font-size: 0.8rem; cursor: pointer; border: none; }
-        .play-btn { background: #fff; color: #000; }
-        .copy-btn { background: #111; color: #fff; border: 1px solid var(--border); }
         
         .error-msg { color: var(--warn); font-size: 0.65rem; font-weight: 800; margin-top: 10px; display: none; }
         .footer { position: fixed; bottom: 20px; right: 25px; }
@@ -89,7 +108,10 @@ const html = `<!DOCTYPE html>
             <h1 style="font-size: 2rem; margin-bottom:20px; letter-spacing: -1.2px;">Ro<span style="color:var(--accent)">Stats</span></h1>
             <div class="input-box" id="inputWrapper">
                 <input type="text" id="placeId" placeholder="Paste Game Link or ID...">
-                <button class="scan-btn" id="scanBtn" onclick="run()">Scan</button>
+                <button class="scan-btn" id="scanBtn" onclick="run()" disabled>Scan</button>
+            </div>
+            <div class="captcha-box">
+                <div class="cf-turnstile" data-sitekey="0x4AAAAAACk-FIXxhlsidtFU" data-callback="onCaptcha"></div>
             </div>
             <div id="errorBox" class="error-msg">EXPERIENCE NOT FOUND</div>
         </div>
@@ -135,12 +157,7 @@ const html = `<!DOCTYPE html>
                     <div class="meta-item">Avg Growth<b><span id="vGrowth">-</span></b></div>
                 </div>
                 <div class="label" style="margin-bottom:10px;">Description</div>
-                <div id="gDesc" class="full-desc"></div>
-            </div>
-
-            <div class="action-grid">
-                <button class="btn copy-btn" onclick="copyStats()">Copy Summary</button>
-                <a id="robloxLink" class="btn play-btn" target="_blank">Open Experience</a>
+                <div id="gDesc" style="font-size: 0.8rem; color: var(--dim); line-height: 1.4;"></div>
             </div>
         </div>
     </div>
@@ -148,56 +165,67 @@ const html = `<!DOCTYPE html>
     <div class="footer"><a href="https://www.roblox.com/users/9461867215/profile" class="footer-link" target="_blank">BY ROQARD</a></div>
 
     <script>
-        let itv, lastCount = 0;
+        let itv, lastCount = 0, captchaToken = null;
         const fmt = x => x >= 1e6 ? (x/1e6).toFixed(1)+'M' : x >= 1e3 ? (x/1e3).toFixed(1)+'K' : x.toLocaleString();
 
-        async function getName(id) {
+        function onCaptcha(token) {
+            captchaToken = token;
+            document.getElementById('scanBtn').disabled = false;
+        }
+
+        async function validateGame(id) {
             try {
-                const v = await fetch("/api/validate-id?id=" + id).then(r => r.json());
-                const d = await fetch("/api/get-stats?uid=" + v.universeId).then(r => r.json());
-                return d.game.name;
-            } catch (e) { return null; }
+                const r = await fetch("/api/validate-id?id=" + id);
+                if (!r.ok) {
+                    const data = await r.json();
+                    return { success: false, error: data.error };
+                }
+                const v = await r.json();
+                const d = await fetch("/api/get-stats?uid=" + v.universeId).then(res => res.json());
+                return { success: true, name: d.game.name, data: d, id: id };
+            } catch (e) {
+                return { success: false, error: "NotFound" };
+            }
         }
 
         async function loadRecommended() {
             const id = '109612380137176';
-            const name = await getName(id);
-            if(!name) return;
-            document.getElementById('recomContainer').innerHTML = '<div class="nav-chip" onclick="quickScan(\\''+id+'\\')">'+name+'</div>';
+            const res = await validateGame(id);
+            if(res.success) {
+                document.getElementById('recomContainer').innerHTML = '<div class="nav-chip" onclick="quickScan(\\''+id+'\\')">'+res.name+'</div>';
+            }
         }
 
         function saveRecent(id, name) {
-            let recents = JSON.parse(localStorage.getItem('roStats_v5') || '[]');
+            let recents = JSON.parse(localStorage.getItem('roStats_v7') || '[]');
             recents = recents.filter(x => x.id !== id);
             recents.unshift({id, name});
             if (recents.length > 4) recents.pop();
-            localStorage.setItem('roStats_v5', JSON.stringify(recents));
-            renderRecents();
-        }
-
-        function removeRecent(e, id) {
-            e.stopPropagation();
-            let recents = JSON.parse(localStorage.getItem('roStats_v5') || '[]');
-            recents = recents.filter(x => x.id !== id);
-            localStorage.setItem('roStats_v5', JSON.stringify(recents));
+            localStorage.setItem('roStats_v7', JSON.stringify(recents));
             renderRecents();
         }
 
         function renderRecents() {
             const container = document.getElementById('recentContainer');
             const block = document.getElementById('recentBlock');
-            const recents = JSON.parse(localStorage.getItem('roStats_v5') || '[]');
+            const recents = JSON.parse(localStorage.getItem('roStats_v7') || '[]');
             if(recents.length === 0) { block.style.display = 'none'; return; }
             block.style.display = 'block';
             container.innerHTML = '';
             recents.forEach(item => {
                 const chip = document.createElement('div');
                 chip.className = 'nav-chip';
-                chip.innerHTML = item.name + '<span class="del-recent">×</span>';
+                chip.innerHTML = item.name + '<span class="del-recent" onclick="event.stopPropagation(); removeRecent(\\''+item.id+'\\')">×</span>';
                 chip.onclick = () => quickScan(item.id);
-                chip.querySelector('.del-recent').onclick = (e) => removeRecent(e, item.id);
                 container.appendChild(chip);
             });
+        }
+
+        function removeRecent(id) {
+            let recents = JSON.parse(localStorage.getItem('roStats_v7') || '[]');
+            recents = recents.filter(x => x.id !== id);
+            localStorage.setItem('roStats_v7', JSON.stringify(recents));
+            renderRecents();
         }
 
         function quickScan(id) {
@@ -206,87 +234,65 @@ const html = `<!DOCTYPE html>
         }
 
         async function run() { 
+            if(!captchaToken) return;
             const errorBox = document.getElementById('errorBox');
-            const inputWrap = document.getElementById('inputWrapper');
             const scanBtn = document.getElementById('scanBtn');
-            
-            let raw = document.getElementById('placeId').value.trim();
-            if(!raw) return;
+            const raw = document.getElementById('placeId').value.trim();
             const match = raw.match(/games\\/(\\d+)/);
             const id = match ? match[1] : raw.replace(/\\D/g, '');
             
             errorBox.style.display = 'none';
-            inputWrap.style.borderColor = 'var(--border)';
             scanBtn.innerText = 'WAIT...';
 
-            // Pre-validation: Don't hide anything until we know it exists
-            const name = await getName(id);
+            const res = await validateGame(id);
             
-            if(!name) {
+            if(!res.success) {
                 errorBox.style.display = 'block';
-                inputWrap.style.borderColor = 'var(--warn)';
+                errorBox.innerText = res.error === "Private" ? "EXPERIENCE IS PRIVATE" : "EXPERIENCE NOT FOUND";
                 scanBtn.innerText = 'SCAN';
                 return;
             }
 
             document.getElementById('navWrapper').style.display = 'none';
+            document.querySelector('.captcha-box').style.display = 'none';
             document.getElementById('results').style.display = 'flex';
             scanBtn.innerText = 'SCAN';
             
             if(itv) clearInterval(itv);
-            await update(id);
-            itv = setInterval(() => update(id), 30000);
+            updateUI(res.data, id);
+            itv = setInterval(async () => {
+                const refresh = await validateGame(id);
+                if(refresh.success) updateUI(refresh.data, id);
+            }, 30000);
         }
 
-        async function update(i) {
-            try {
-                const v = await fetch("/api/validate-id?id=" + i).then(r => r.json());
-                const d = await fetch("/api/get-stats?uid=" + v.universeId).then(r => r.json());
-                const g = d.game;
-                
-                saveRecent(i, g.name);
-                
-                document.getElementById('gThumb').src = "https://www.roblox.com/asset-thumbnail/image?assetId=" + i + "&width=420&height=420&format=png";
-                document.getElementById('thumbWrap').style.display = 'block';
+        function updateUI(d, id) {
+            const g = d.game;
+            const v = d.votes;
+            saveRecent(id, g.name);
+            
+            document.getElementById('gThumb').src = "https://www.roblox.com/asset-thumbnail/image?assetId=" + id + "&width=420&height=420&format=png";
+            document.getElementById('thumbWrap').style.display = 'block';
+            document.getElementById('gTitle').innerText = g.name;
+            document.getElementById('gGenre').innerText = g.genre || "All Genres";
+            document.getElementById('gOwner').innerText = "By " + g.creator.name;
+            document.getElementById('gOwner').href = (g.creator.type === "Group" ? "https://www.roblox.com/groups/" : "https://www.roblox.com/users/") + g.creator.id;
 
-                const up = d.votes.upVotes || 0, down = d.votes.downVotes || 0;
-                const rate = (up+down) > 0 ? Math.round((up/(up+down))*100) : 0;
-                const growth = Math.round(g.visits / Math.max(1, (new Date() - new Date(g.created)) / (1000 * 60 * 60 * 24)));
-
-                document.getElementById('gTitle').innerText = g.name;
-                document.getElementById('gGenre').innerText = (g.genre || "All Genres");
-                document.getElementById('gOwner').innerText = "By " + g.creator.name;
-                document.getElementById('gOwner').href = (g.creator.type === "Group" ? "https://www.roblox.com/groups/" : "https://www.roblox.com/users/") + g.creator.id;
-                
-                const trendEl = document.getElementById('tPlay');
-                if(lastCount > 0) {
-                    const diff = g.playing - lastCount;
-                    if(diff > 0) { trendEl.innerText = "↑ " + diff; trendEl.style.color = "var(--accent)"; }
-                    else if(diff < 0) { trendEl.innerText = "↓ " + Math.abs(diff); trendEl.style.color = "var(--warn)"; }
-                }
-                lastCount = g.playing;
-
-                document.getElementById('vPlay').innerText = fmt(g.playing);
-                document.getElementById('vRate').innerText = rate + "%";
-                document.getElementById('vDis').innerText = fmt(down);
-                document.getElementById('vVisit').innerText = fmt(g.visits);
-                document.getElementById('vLike').innerText = fmt(up);
-                document.getElementById('vFav').innerText = fmt(d.favorites);
-                document.getElementById('dCreate').innerText = new Date(g.created).toLocaleDateString();
-                document.getElementById('dUpdate').innerText = new Date(g.updated).toLocaleDateString();
-                document.getElementById('vMax').innerText = g.maxPlayers || "--";
-                document.getElementById('vGrowth').innerText = fmt(growth) + "/day";
-                document.getElementById('gDesc').innerText = g.description || "No description.";
-                document.getElementById('robloxLink').href = "https://www.roblox.com/games/" + i;
-            } catch (e) {}
-        }
-
-        function copyStats() {
-            const t = document.getElementById('gTitle').innerText;
-            const p = document.getElementById('vPlay').innerText;
-            navigator.clipboard.writeText(t + " Stats\\nActive: " + p + "\\nvia RoStats");
-            const b = document.querySelector('.copy-btn'); b.innerText = "COPIED";
-            setTimeout(() => { b.innerText = "COPY SUMMARY"; }, 2000);
+            const up = v.upVotes || 0, down = v.downVotes || 0;
+            const rate = (up+down) > 0 ? Math.round((up/(up+down))*100) : 0;
+            
+            document.getElementById('vPlay').innerText = fmt(g.playing);
+            document.getElementById('vRate').innerText = rate + "%";
+            document.getElementById('vDis').innerText = fmt(down);
+            document.getElementById('vVisit').innerText = fmt(g.visits);
+            document.getElementById('vLike').innerText = fmt(up);
+            document.getElementById('vFav').innerText = fmt(d.favorites);
+            
+            document.getElementById('dCreate').innerText = new Date(g.created).toLocaleDateString();
+            document.getElementById('dUpdate').innerText = new Date(g.updated).toLocaleDateString();
+            document.getElementById('vMax').innerText = g.maxPlayers || "--";
+            document.getElementById('vGrowth').innerText = fmt(Math.round(g.visits / Math.max(1, (new Date() - new Date(g.created)) / 86400000))) + "/day";
+            document.getElementById('gDesc').innerText = g.description || "No description provided.";
         }
 
         renderRecents();
