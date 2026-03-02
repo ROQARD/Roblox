@@ -6,7 +6,7 @@ export default {
     if (url.pathname.startsWith("/api/")) {
       const apiHeaders = { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" };
       
-      // Cloudflare Turnstile Server-Side Verification
+      // 1. Cloudflare Turnstile Server-Side Verification
       if (url.pathname === "/api/verify-captcha") {
         const token = url.searchParams.get("token");
         const secret = "0x4AAAAAACk-FBhYSFtiH6dRcg_6osS-xLM"; 
@@ -18,6 +18,7 @@ export default {
         return new Response(JSON.stringify(outcome), { headers: apiHeaders });
       }
 
+      // 2. Proxy Fetch Logic
       const tryFetch = async (s, e) => {
         for (let p of PROXIES) {
           try {
@@ -67,14 +68,15 @@ const html = `<!DOCTYPE html>
         body { background: var(--bg); color: var(--text); padding: 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
         .container { width: 100%; max-width: 650px; padding-bottom: 80px; }
         
+        /* Search UI */
         .search-area { background: var(--card); border: 1px solid var(--border); padding: 30px; border-radius: 24px; text-align: center; margin-bottom: 12px; }
         .input-box { display: flex; gap: 10px; background: #000; padding: 6px; border-radius: 14px; border: 1px solid var(--border); transition: 0.3s; }
         input { flex: 1; background: transparent; border: none; color: white; padding: 10px 15px; font-size: 0.9rem; outline: none; }
         .scan-btn { background: var(--accent); color: #000; border: none; padding: 0 20px; border-radius: 10px; font-weight: 800; cursor: pointer; text-transform: uppercase; font-size: 0.7rem; }
         .scan-btn:disabled { opacity: 0.3; cursor: not-allowed; filter: grayscale(1); }
-
         .captcha-box { margin: 15px 0; display: flex; justify-content: center; min-height: 65px; }
         
+        /* Navigation (Recent/Recommended) */
         .nav-wrapper { width: 100%; display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px; }
         .nav-label { font-size: 0.55rem; color: #444; text-transform: uppercase; font-weight: 900; width: 100%; margin-bottom: 4px; letter-spacing: 1px; }
         .chip-group { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -82,19 +84,23 @@ const html = `<!DOCTYPE html>
         .nav-chip:hover { border-color: var(--accent); color: #fff; }
         .del-recent { color: var(--warn); font-size: 1rem; line-height: 1; margin-left: 4px; }
 
+        /* Dashboard */
         .dashboard { display: none; flex-direction: column; gap: 12px; animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
         .box { background: var(--card); border: 1px solid var(--border); padding: 20px; border-radius: 18px; position: relative; }
         .thumb-wrap { width: 120px; height: 120px; border-radius: 18px; background: #111; margin: 0 auto 15px; overflow: hidden; display: none; border: 1px solid var(--border); }
         .thumb-wrap img { width: 100%; height: 100%; object-fit: cover; }
-
         .label { font-size: 0.6rem; color: var(--dim); text-transform: uppercase; font-weight: 800; margin-bottom: 6px; }
         .val { font-size: 1.3rem; font-weight: 800; }
-        .trend { font-size: 0.7rem; font-weight: 600; margin-top: 4px; }
         
         .content-card { background: var(--card); border: 1px solid var(--border); padding: 25px; border-radius: 20px; }
         .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
         .meta-item { font-size: 0.75rem; color: var(--dim); }
         .meta-item b { color: #fff; display: block; font-size: 0.85rem; margin-top: 2px; }
+
+        .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+        .btn { text-decoration: none; text-align: center; padding: 16px; border-radius: 14px; font-weight: 800; text-transform: uppercase; font-size: 0.8rem; cursor: pointer; border: none; transition: 0.2s; }
+        .play-btn { background: #fff; color: #000; }
+        .copy-btn { background: #111; color: #fff; border: 1px solid var(--border); }
         
         .error-msg { color: var(--warn); font-size: 0.65rem; font-weight: 800; margin-top: 10px; display: none; }
         .footer { position: fixed; bottom: 20px; right: 25px; }
@@ -138,7 +144,7 @@ const html = `<!DOCTYPE html>
             </div>
 
             <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
-                <div class="box"><div class="label">Active</div><div class="val" id="vPlay">-</div><div id="tPlay" class="trend"></div></div>
+                <div class="box"><div class="label">Active</div><div class="val" id="vPlay">-</div></div>
                 <div class="box"><div class="label">Rating</div><div class="val" id="vRate">-</div></div>
                 <div class="box"><div class="label">Dislikes</div><div class="val" id="vDis" style="color:var(--warn)">-</div></div>
             </div>
@@ -157,7 +163,12 @@ const html = `<!DOCTYPE html>
                     <div class="meta-item">Avg Growth<b><span id="vGrowth">-</span></b></div>
                 </div>
                 <div class="label" style="margin-bottom:10px;">Description</div>
-                <div id="gDesc" style="font-size: 0.8rem; color: var(--dim); line-height: 1.4;"></div>
+                <div id="gDesc" style="font-size: 0.8rem; color: var(--dim); line-height: 1.4; max-height: 150px; overflow-y: auto;"></div>
+            </div>
+
+            <div class="action-grid">
+                <button class="btn copy-btn" onclick="copyStats()">Copy Summary</button>
+                <a id="robloxLink" class="btn play-btn" target="_blank">Open Experience</a>
             </div>
         </div>
     </div>
@@ -165,7 +176,7 @@ const html = `<!DOCTYPE html>
     <div class="footer"><a href="https://www.roblox.com/users/9461867215/profile" class="footer-link" target="_blank">BY ROQARD</a></div>
 
     <script>
-        let itv, lastCount = 0, captchaToken = null;
+        let itv, captchaToken = null;
         const fmt = x => x >= 1e6 ? (x/1e6).toFixed(1)+'M' : x >= 1e3 ? (x/1e3).toFixed(1)+'K' : x.toLocaleString();
 
         function onCaptcha(token) {
@@ -197,18 +208,18 @@ const html = `<!DOCTYPE html>
         }
 
         function saveRecent(id, name) {
-            let recents = JSON.parse(localStorage.getItem('roStats_v7') || '[]');
+            let recents = JSON.parse(localStorage.getItem('roStats_final') || '[]');
             recents = recents.filter(x => x.id !== id);
             recents.unshift({id, name});
             if (recents.length > 4) recents.pop();
-            localStorage.setItem('roStats_v7', JSON.stringify(recents));
+            localStorage.setItem('roStats_final', JSON.stringify(recents));
             renderRecents();
         }
 
         function renderRecents() {
             const container = document.getElementById('recentContainer');
             const block = document.getElementById('recentBlock');
-            const recents = JSON.parse(localStorage.getItem('roStats_v7') || '[]');
+            const recents = JSON.parse(localStorage.getItem('roStats_final') || '[]');
             if(recents.length === 0) { block.style.display = 'none'; return; }
             block.style.display = 'block';
             container.innerHTML = '';
@@ -222,15 +233,23 @@ const html = `<!DOCTYPE html>
         }
 
         function removeRecent(id) {
-            let recents = JSON.parse(localStorage.getItem('roStats_v7') || '[]');
+            let recents = JSON.parse(localStorage.getItem('roStats_final') || '[]');
             recents = recents.filter(x => x.id !== id);
-            localStorage.setItem('roStats_v7', JSON.stringify(recents));
+            localStorage.setItem('roStats_final', JSON.stringify(recents));
             renderRecents();
         }
 
         function quickScan(id) {
             document.getElementById('placeId').value = id;
             run();
+        }
+
+        function copyStats() {
+            const t = document.getElementById('gTitle').innerText;
+            const p = document.getElementById('vPlay').innerText;
+            navigator.clipboard.writeText(t + " Stats\\nActive: " + p + "\\nvia RoStats");
+            const b = document.querySelector('.copy-btn'); b.innerText = "COPIED";
+            setTimeout(() => { b.innerText = "COPY SUMMARY"; }, 2000);
         }
 
         async function run() { 
@@ -245,7 +264,6 @@ const html = `<!DOCTYPE html>
             scanBtn.innerText = 'WAIT...';
 
             const res = await validateGame(id);
-            
             if(!res.success) {
                 errorBox.style.display = 'block';
                 errorBox.innerText = res.error === "Private" ? "EXPERIENCE IS PRIVATE" : "EXPERIENCE NOT FOUND";
@@ -258,6 +276,11 @@ const html = `<!DOCTYPE html>
             document.getElementById('results').style.display = 'flex';
             scanBtn.innerText = 'SCAN';
             
+            // Security: Reset Turnstile
+            turnstile.reset();
+            captchaToken = null;
+            scanBtn.disabled = true;
+
             if(itv) clearInterval(itv);
             updateUI(res.data, id);
             itv = setInterval(async () => {
@@ -293,6 +316,7 @@ const html = `<!DOCTYPE html>
             document.getElementById('vMax').innerText = g.maxPlayers || "--";
             document.getElementById('vGrowth').innerText = fmt(Math.round(g.visits / Math.max(1, (new Date() - new Date(g.created)) / 86400000))) + "/day";
             document.getElementById('gDesc').innerText = g.description || "No description provided.";
+            document.getElementById('robloxLink').href = "https://www.roblox.com/games/" + id;
         }
 
         renderRecents();
